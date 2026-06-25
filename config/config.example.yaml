@@ -1,0 +1,193 @@
+locale:
+  timezone: Asia/Shanghai
+  base_currency: CNY
+
+profile:
+  display_name: 我的
+  ledger_title: 我的个人资产账本
+
+accounts:
+  - name: 主银行卡
+    institution: 银行
+    account_type: bank_card
+    currency: CNY
+    account_no_mask:
+    include_in_net_worth: true
+    # Optional: set a known balance at a known time.
+    # During import, Water Ledger can backfill the opening balance from transactions.
+    manual_balance_cents:
+    manual_balance_at:
+    note: 由银行流水余额自动更新
+  - name: 微信余额
+    institution: 微信支付
+    account_type: wallet
+    currency: CNY
+    account_no_mask:
+    include_in_net_worth: true
+    manual_balance_cents:
+    manual_balance_at:
+    note: 用户可手动录入余额
+  - name: 支付宝余额
+    institution: 支付宝
+    account_type: wallet
+    currency: CNY
+    account_no_mask:
+    include_in_net_worth: true
+    manual_balance_cents:
+    manual_balance_at:
+    note: 用户可手动录入余额
+  - name: 支付宝理财
+    institution: 支付宝
+    account_type: investment
+    currency: CNY
+    include_in_net_worth: true
+    note: 由支付宝余额宝/蚂蚁财富账单估算
+  - name: 美股账户
+    institution: Longbridge
+    account_type: brokerage
+    currency: USD
+    include_in_net_worth: true
+    note: 由券商资产快照自动更新
+  - name: 券商入金在途
+    institution: 手工估算
+    account_type: other_asset
+    currency: CNY
+    include_in_net_worth: true
+    note: 转入券商前后的在途资金估算
+  - name: 消费贷
+    institution: 手工估算
+    account_type: liability
+    currency: CNY
+    include_in_net_worth: true
+    note: 用户手动录入负债
+  - name: 借款账户
+    institution: 手工估算
+    account_type: liability
+    currency: CNY
+    include_in_net_worth: true
+    note: 人情往来借款估算
+
+account_mapping:
+  source_accounts:
+    boc: 主银行卡
+    wechat: 微信余额
+    alipay: 支付宝余额
+  bank_account: 主银行卡
+  bank_payment_keywords:
+    - 银行
+    - 储蓄卡
+    - 信用卡
+  brokerage_account: 美股账户
+  in_transit_account: 券商入金在途
+  borrowing_account: 借款账户
+  alipay_wallet_account: 支付宝余额
+
+categories:
+  - name: 工资收入
+    cashflow_type: income
+  - name: 其他收入
+    cashflow_type: income
+  - name: 退款返现
+    cashflow_type: income
+  - name: 餐饮
+    cashflow_type: expense
+  - name: 交通出行
+    cashflow_type: expense
+  - name: 购物日用
+    cashflow_type: expense
+  - name: 数码订阅
+    cashflow_type: expense
+  - name: 医疗健康
+    cashflow_type: expense
+  - name: 居住缴费
+    cashflow_type: expense
+  - name: 通信话费
+    cashflow_type: expense
+  - name: 学习办公
+    cashflow_type: expense
+  - name: 公益人情
+    cashflow_type: expense
+  - name: 娱乐休闲
+    cashflow_type: expense
+  - name: 其他支出
+    cashflow_type: expense
+  - name: 内部转账/理财
+    cashflow_type: transfer
+  - name: 不计收支
+    cashflow_type: neutral
+
+classification:
+  transfer_keywords:
+    - 购汇
+    - 结汇
+    - 互联互通
+    - 余额宝
+    - 零钱通
+    - 基金
+    - 理财
+  neutral_transfer_keywords:
+    - 提现
+    - 充值
+    - 余额宝
+    - 零钱通
+    - 转入
+    - 转出
+    - 基金
+    - 理财
+  refund_keywords:
+    - 退款
+    - 退回
+    - 退票
+    - 返现
+    - 押金已退
+  salary_keywords:
+    - 工资
+    - 薪
+    - 奖金
+  housing_keywords:
+    - 公寓
+    - 房租
+    - 租房
+    - 租金
+    - 水费
+    - 电费
+    - 燃气
+    - 物业
+  housing_counterparties: []
+  expense_rules:
+    - category: 通信话费
+      keywords: [手机充值, 手机话费, 话费, 流量卡, 电话卡, 通信专卖, 中国联通, 中国移动, 中国电信]
+    - category: 餐饮
+      keywords: [餐, 饭, 麦当劳, 咖啡, 奶茶, 美团, 饿了么, 外卖, 火锅, 麻辣, 肯德基, 便利店]
+    - category: 交通出行
+      keywords: [滴滴, 高德打车, 打车, 地铁, 公交, 铁路, 机票, 出行, 停车]
+    - category: 购物日用
+      keywords: [日用, 百货, 抖音电商, 淘宝, 天猫, 京东, 拼多多, 得物, 超市, 便利]
+    - category: 数码订阅
+      keywords: [Apple, 阿里云, 腾讯云, 订阅, 云服务, Digital, OpenAI]
+    - category: 医疗健康
+      keywords: [医院, 药, 健康, 医保]
+    - category: 学习办公
+      keywords: [书, 课程, 教育, 办公, 文具]
+    - category: 公益人情
+      keywords: [公益, 捐, 红包, 转账, 礼]
+    - category: 娱乐休闲
+      keywords: [电影, 游戏, 音乐, 旅游, 酒店, 景区]
+
+private_rules:
+  liability_inflow_keyword: 消费贷借入
+  borrowing_keyword:
+  borrowing_start_at: "2025-10-01 00:00:00"
+  brokerage_transfer_keywords:
+    - 购汇
+    - 互联互通
+    - Bank of China (Hong
+    - BANK OF CHINA (HONG
+  ignore_transfer_keywords:
+    - 国际汇款
+
+brokerages:
+  longbridge:
+    enabled: false
+    account: 美股账户
+    deposit_settlements: []

@@ -1,0 +1,158 @@
+// ============ 账本运行时数据 ============
+const USD_RATE_FALLBACK = 6.764984440535787;
+
+function loadLedgerBoot(){
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", "/api/design-data", false);
+  xhr.send(null);
+  if(xhr.status < 200 || xhr.status >= 300){
+    throw new Error("无法读取本地账本数据：" + xhr.status);
+  }
+  return JSON.parse(xhr.responseText);
+}
+
+const LEDGER_BOOT = loadLedgerBoot();
+const USD_RATE = LEDGER_BOOT.fx?.usdToCny || USD_RATE_FALLBACK;
+
+// ---- 资产 / 负债 ----
+const ASSETS = LEDGER_BOOT.assets;
+const ASSET_TIMELINE = LEDGER_BOOT.assetTimeline || { dates:[], accounts:[], history:{}, txnsByDayAccount:{} };
+
+const NET_WORTH = ASSETS.flatMap(g=>g.items).reduce((s,i)=>s+i.cny,0);
+const TOTAL_ASSET = ASSETS.flatMap(g=>g.items).filter(i=>i.cny>0).reduce((s,i)=>s+i.cny,0);
+const TOTAL_DEBT  = ASSETS.flatMap(g=>g.items).filter(i=>i.cny<0).reduce((s,i)=>s+i.cny,0);
+
+// ---- 净资产曲线（日级，元）----
+const NW_SERIES = LEDGER_BOOT.nwSeries;
+
+// ---- 美股市值曲线（日级，已折人民币）----
+const STOCK_SERIES = LEDGER_BOOT.stockSeries;
+const ACCOUNT_SERIES = LEDGER_BOOT.accountSeries || [];
+const OTHER_SERIES = NW_SERIES.map((d,i)=>({ m:d.m, v:d.v - (STOCK_SERIES[i]?.v || 0) }));
+
+const STOCK_NOW = STOCK_SERIES[STOCK_SERIES.length-1]?.v || 0;
+const STOCK_MOM = STOCK_NOW - (STOCK_SERIES[STOCK_SERIES.length-2]?.v || STOCK_NOW);
+const STOCK_YOY = STOCK_NOW - (STOCK_SERIES[0]?.v || STOCK_NOW);
+const STOCK_SHARE = TOTAL_ASSET ? STOCK_NOW / TOTAL_ASSET : 0;
+const NW_GROWTH = NET_WORTH - (NW_SERIES[0]?.v || NET_WORTH);
+const STOCK_CONTRIB = NW_GROWTH ? STOCK_YOY / NW_GROWTH : 0;
+
+// ---- 本月汇总 ----
+const MONTH = {
+  label: LEDGER_BOOT.month.label,
+  income: LEDGER_BOOT.month.income,
+  expense: LEDGER_BOOT.month.expense,
+  get net(){ return this.income - this.expense; },
+};
+
+// ---- 分类体系 ----
+const CATEGORIES = LEDGER_BOOT.categories;
+const CAT_GLYPH = {
+  餐饮:"◗", 交通:"◇", 购物:"□", 居住:"⬠", 通信:"◌", 订阅:"◎", 应用软件:"▤", 数码:"▤", 娱乐:"☻",
+  医疗:"✚", 人情:"♢", 学习:"◈", 收入:"▲", 转账:"⇄", 其他:"·"
+};
+
+const SOURCES = {
+  boc:{ label:"银行", glyph:"●" },
+  wx: { label:"微信余额", glyph:"◆" },
+  ali:{ label:"支付宝余额", glyph:"◆" },
+};
+
+const CHANNELS = {
+  boc:{ label:"银行", glyph:"●" },
+  wx: { label:"微信", glyph:"◆" },
+  ali:{ label:"支付宝", glyph:"◆" },
+};
+window.CHANNELS = CHANNELS;
+
+// ---- 账单流水 ----
+// amount: 负为支出，正为收入
+const TXNS = LEDGER_BOOT.txns;
+
+// ---- 报告：异常 / 订阅 / 建议 ----
+const ANOMALIES = LEDGER_BOOT.anomalies;
+const SUBSCRIPTIONS = LEDGER_BOOT.subscriptions;
+const SUB_TOTAL = SUBSCRIPTIONS.reduce((s,x)=>s+x.cny,0);
+const SUGGESTIONS = LEDGER_BOOT.suggestions;
+
+// 支出分类聚合（用于报告/总览）
+function isCountable(t){ return t.countable !== false; }
+function cashflowTxns(txns){ return txns.filter(isCountable); }
+function expenseByCat(txns){
+  const m = {};
+  cashflowTxns(txns).filter(t=>t.amount<0).forEach(t=>{ m[t.cat]=(m[t.cat]||0)+(-t.amount); });
+  return Object.entries(m).map(([cat,v])=>({cat,v})).sort((a,b)=>b.v-a.v);
+}
+
+// ============ 跨期流水（用于统计页的 年/全部 视图）============
+const TODAY = LEDGER_BOOT.today;
+function zhDate(value){
+  if(!value) return "";
+  const [y,m,d] = value.slice(0,10).split("-");
+  return `${y} 年 ${Number(m)} 月 ${Number(d)} 日`;
+}
+const ALL_TXNS = LEDGER_BOOT.allTxns.sort((a,b)=> a.date<b.date?1:-1);
+const EARLIEST = ALL_TXNS[ALL_TXNS.length-1]?.day || TODAY;
+
+function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
+function pad2(n){ return String(n).padStart(2,"0"); }
+function ymd(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+
+function filterPeriod(txns, period, offset=0){
+  const today = new Date(TODAY);
+  let startStr, endStr, label, days;
+
+  if(period==="all"){
+    return { rows:txns, days: daysBetween(EARLIEST, TODAY)+1, label:"全部", canPrev:false, canNext:false };
+  }
+
+  if(period==="week"){
+    const end = new Date(today); end.setDate(today.getDate() - 7*offset);
+    const start = new Date(end); start.setDate(end.getDate() - 6);
+    startStr = ymd(start); endStr = ymd(end);
+    days = 7;
+    label = `${startStr.slice(5)} ~ ${endStr.slice(5)}`;
+  } else if(period==="month"){
+    const d = new Date(today.getFullYear(), today.getMonth()-offset, 1);
+    const mEnd = new Date(d.getFullYear(), d.getMonth()+1, 0);
+    const periodEnd = mEnd < today ? mEnd : today;
+    startStr = ymd(d); endStr = ymd(periodEnd);
+    days = daysBetween(startStr, endStr)+1;
+    label = `${d.getFullYear()} 年 ${d.getMonth()+1} 月`;
+  } else if(period==="year"){
+    const y = today.getFullYear()-offset;
+    const start = new Date(y,0,1);
+    const end = y===today.getFullYear()? today : new Date(y,11,31);
+    startStr = ymd(start); endStr = ymd(end);
+    days = daysBetween(startStr, endStr)+1;
+    label = `${y} 年`;
+  }
+
+  const rows = txns.filter(t=>(t.day || t.date.slice(0,10))>=startStr && (t.day || t.date.slice(0,10))<=endStr);
+  const canPrev = startStr > EARLIEST;
+  const canNext = offset > 0;
+  return { rows, days, label, start:startStr, end:endStr, canPrev, canNext };
+}
+
+function summarize(txns){
+  const countable = cashflowTxns(txns);
+  const income = countable.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const expense = -countable.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+  const net = income-expense;
+  const byCat = expenseByCat(countable);
+  return { income, expense, net, byCat };
+}
+
+function monthKey(date){ return date.slice(0,7); }
+function monthLabel(key){ return `${key.slice(2,4)}/${key.slice(5)}`; }
+function monthlySeries(txns){
+  const m = {};
+  cashflowTxns(txns).forEach(t=>{
+    const k = monthKey(t.day || t.date);
+    if(!m[k]) m[k] = { m:monthLabel(k), income:0, expense:0, net:0 };
+    if(t.amount>0) m[k].income += t.amount;
+    if(t.amount<0) m[k].expense += -t.amount;
+    m[k].net += t.amount;
+  });
+  return Object.entries(m).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>v);
+}

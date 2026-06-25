@@ -1,0 +1,36 @@
+# Local private workspace
+private/*
+!private/.gitkeep
+
+# Runtime data and generated outputs
+data/*
+!data/.gitkeep
+outputs/*
+!outputs/.gitkeep
+!outputs/longbridge_live_snapshots/
+outputs/longbridge_live_snapshots/*
+!outputs/longbridge_live_snapshots/.gitkeep
+
+# Secrets and local environment
+.env
+.env.*
+*.key
+*.pem
+*.p12
+
+# Personal finance exports and databases
+*.sqlite
+*.sqlite.*
+*.db
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.pdf
+!examples/**
+
+# Logs and caches
+*.log
+__pycache__/
+*.py[cod]
+.DS_Store

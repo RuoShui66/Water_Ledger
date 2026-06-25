@@ -1,0 +1,211 @@
+// ============ App 主壳 ============
+
+// 画境 —— 每个方案重设一整套底色 + 墨色（单色调质感，像 Hermes 的蓝、Cursor 的暖）
+const WASH = {
+  "晨曦": { // 暖 · Cursor 味
+    base:"oklch(0.955 0.020 85)", b1:"oklch(0.95 0.055 72 / 0.92)", b2:"oklch(0.90 0.065 44 / 0.55)",
+    b3:"oklch(0.90 0.050 255 / 0.42)", b4:"oklch(0.88 0.040 150 / 0.30)",
+    paper:"oklch(0.975 0.012 85)", paper2:"oklch(0.965 0.014 85)", paper3:"oklch(0.945 0.016 84)", sink:"oklch(0.925 0.018 82)",
+    ink:"oklch(0.235 0.024 58)", ink2:"oklch(0.35 0.022 56)", ink3:"oklch(0.46 0.020 54)", ink4:"oklch(0.56 0.016 58)",
+    line:"oklch(0.80 0.020 72 / 0.85)", line2:"oklch(0.72 0.026 70)", accent:"oklch(0.58 0.105 62)", hero:"oklch(0.46 0.155 52)",
+  },
+  "远山": { // 蓝单色 · Hermes 味
+    base:"oklch(0.93 0.030 245)", b1:"oklch(0.92 0.060 250 / 0.92)", b2:"oklch(0.88 0.070 240 / 0.55)",
+    b3:"oklch(0.90 0.050 262 / 0.45)", b4:"oklch(0.86 0.055 230 / 0.32)",
+    paper:"oklch(0.955 0.022 245)", paper2:"oklch(0.945 0.024 245)", paper3:"oklch(0.918 0.028 245)", sink:"oklch(0.895 0.032 245)",
+    ink:"oklch(0.295 0.105 256)", ink2:"oklch(0.37 0.095 256)", ink3:"oklch(0.46 0.082 256)", ink4:"oklch(0.56 0.066 256)",
+    line:"oklch(0.78 0.045 250 / 0.85)", line2:"oklch(0.70 0.055 250)", accent:"oklch(0.44 0.135 258)", hero:"oklch(0.44 0.185 264)",
+  },
+  "苔痕": { // 鼠尾草绿单色
+    base:"oklch(0.945 0.028 140)", b1:"oklch(0.93 0.055 142 / 0.90)", b2:"oklch(0.89 0.060 118 / 0.52)",
+    b3:"oklch(0.90 0.045 165 / 0.42)", b4:"oklch(0.88 0.045 90 / 0.30)",
+    paper:"oklch(0.962 0.020 140)", paper2:"oklch(0.952 0.022 140)", paper3:"oklch(0.925 0.026 140)", sink:"oklch(0.90 0.030 140)",
+    ink:"oklch(0.265 0.060 152)", ink2:"oklch(0.36 0.055 150)", ink3:"oklch(0.46 0.047 150)", ink4:"oklch(0.56 0.037 150)",
+    line:"oklch(0.79 0.035 145 / 0.85)", line2:"oklch(0.71 0.045 145)", accent:"oklch(0.48 0.090 152)", hero:"oklch(0.40 0.125 152)",
+  },
+  "暮色": { // 黛紫单色
+    base:"oklch(0.935 0.028 330)", b1:"oklch(0.92 0.055 332 / 0.90)", b2:"oklch(0.88 0.060 0 / 0.52)",
+    b3:"oklch(0.90 0.045 300 / 0.42)", b4:"oklch(0.87 0.045 280 / 0.30)",
+    paper:"oklch(0.958 0.020 330)", paper2:"oklch(0.948 0.022 330)", paper3:"oklch(0.92 0.026 330)", sink:"oklch(0.895 0.030 330)",
+    ink:"oklch(0.265 0.055 328)", ink2:"oklch(0.36 0.050 328)", ink3:"oklch(0.46 0.044 328)", ink4:"oklch(0.56 0.034 328)",
+    line:"oklch(0.79 0.035 330 / 0.85)", line2:"oklch(0.71 0.045 330)", accent:"oklch(0.47 0.100 332)", hero:"oklch(0.42 0.145 332)",
+  },
+};
+
+const TABS = [
+  { id:"overview", label:"总览", en:"OVERVIEW" },
+  { id:"stats",    label:"统计", en:"STATS" },
+  { id:"bills",    label:"账单", en:"BILLS" },
+  { id:"assets",   label:"资产", en:"ASSETS" },
+  { id:"report",   label:"报告", en:"REPORT" },
+];
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "wash": "远山",
+  "grain": true,
+  "density": "regular"
+}/*EDITMODE-END*/;
+
+function SegMidget({ options, value, onChange }){
+  return (
+    <div style={{ display:"inline-flex", border:"1px solid var(--line-2)", borderRadius:2,
+      overflow:"hidden", background:"color-mix(in oklch, var(--paper) 70%, transparent)", backdropFilter:"blur(6px)" }}>
+      {options.map((o,i)=>(
+        <button key={o.id} onClick={()=>onChange(o.id)}
+          style={{ padding:"7px 16px", border:"none",
+            borderLeft: i>0?"1px solid var(--line)":"none",
+            background: value===o.id?"var(--ink)":"transparent",
+            color: value===o.id?"var(--paper)":"var(--ink-3)",
+            fontSize:13, fontFamily:"var(--cjk-serif)", letterSpacing:"0.02em",
+            transition:"all .18s" }}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function App(){
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [tab, setTab] = useState(()=> localStorage.getItem("jz_tab") || "overview");
+
+  useEffect(()=>{ localStorage.setItem("jz_tab", tab); },[tab]);
+
+  // apply wash —— 整套底色 + 墨色 + 强调色
+  useEffect(()=>{
+    const w = WASH[t.wash] || WASH["远山"];
+    const r = document.documentElement.style;
+    r.setProperty("--bg-base",w.base); r.setProperty("--bg-1",w.b1); r.setProperty("--bg-2",w.b2);
+    r.setProperty("--bg-3",w.b3); r.setProperty("--bg-4",w.b4);
+    r.setProperty("--paper",w.paper); r.setProperty("--paper-2",w.paper2);
+    r.setProperty("--paper-3",w.paper3); r.setProperty("--paper-sink",w.sink);
+    r.setProperty("--ink",w.ink); r.setProperty("--ink-2",w.ink2);
+    r.setProperty("--ink-3",w.ink3); r.setProperty("--ink-4",w.ink4);
+    r.setProperty("--line",w.line); r.setProperty("--line-2",w.line2);
+    r.setProperty("--accent",w.accent); r.setProperty("--hero",w.hero);
+    r.setProperty("--accent-soft", `color-mix(in oklch, ${w.accent} 12%, transparent)`);
+  },[t.wash]);
+
+  // 颗粒纹理开关
+  useEffect(()=>{
+    document.body.style.setProperty("--grain-on", t.grain ? "1" : "0");
+    document.body.classList.toggle("no-grain", !t.grain);
+  },[t.grain]);
+
+  const ac = "var(--accent)";
+  const dens = t.density || "regular";
+  const pad = dens==="compact"? "0 30px" : dens==="comfy"? "0 68px" : "0 48px";
+  const maxw = dens==="comfy"? 1100 : 1200;
+
+  const pageTitle = {overview:"总览", stats:"收支统计", bills:"账单流水", assets:"资产负债", report:"月度报告"}[tab];
+
+  return (
+    <div data-screen-label="记账" style={{ minHeight:"100vh", paddingBottom:90 }}>
+      <style>{`body.no-grain::before, body.no-grain::after{ display:none; }`}</style>
+
+      {/* ===== 顶栏 ===== */}
+      <header style={{ borderBottom:"1px solid var(--line-2)", position:"sticky", top:0, zIndex:20,
+        background:"color-mix(in oklch, var(--paper) 82%, transparent)", backdropFilter:"blur(12px) saturate(1.1)", WebkitBackdropFilter:"blur(12px) saturate(1.1)" }}>
+        <div style={{ maxWidth:maxw, margin:"0 auto" }} className="frame shell-pad">
+          {/* 报头 */}
+          <div style={{ display:"flex", alignItems:"stretch", justifyContent:"space-between",
+            borderBottom:"1px solid var(--line)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 24px 14px",
+              borderRight:"1px solid var(--line)" }} className="hdr-pad">
+              <div>
+                <div className="didone" style={{ fontSize:27, fontWeight:700, lineHeight:0.92,
+                  letterSpacing:"0.01em", color:"var(--ink)" }}>記賬</div>
+                <div className="label" style={{ fontSize:8.5, color:"var(--accent)", marginTop:3,
+                  letterSpacing:"0.34em", fontWeight:700 }}>LEDGER</div>
+              </div>
+            </div>
+            <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"flex-end",
+              gap:0 }} className="hdr-meta">
+              <div className="label" style={{ fontSize:10, color:"var(--ink-4)", padding:"0 24px",
+                alignSelf:"stretch", display:"flex", alignItems:"center",
+                whiteSpace:"nowrap" }}>{LEDGER_BOOT.profile?.ledgerTitle || "我的个人资产账本"}</div>
+            </div>
+          </div>
+          {/* tabs —— 细线分割的栏目 */}
+          <nav className="jz-tabs" style={{ display:"flex" }}>
+            {TABS.map((tb,i)=>(
+              <button key={tb.id} onClick={()=>setTab(tb.id)}
+                style={{ display:"flex", flexDirection:"column", gap:3, padding:"11px 26px",
+                  border:"none", borderRight:"1px solid var(--line)", background: tab===tb.id?"color-mix(in oklch, var(--accent) 9%, transparent)":"transparent",
+                  position:"relative", alignItems:"flex-start",
+                  color: tab===tb.id?"var(--ink)":"var(--ink-3)", transition:"all .18s" }}>
+                <span className="cjk-serif" style={{ fontSize:15, fontWeight: tab===tb.id?600:400,
+                  letterSpacing:"0.04em" }}>{tb.label}</span>
+                <span className="label" style={{ fontSize:8, letterSpacing:"0.22em",
+                  color: tab===tb.id?"var(--accent)":"var(--ink-4)" }}>{tb.en}</span>
+                {tab===tb.id && <span style={{ position:"absolute", left:0, right:0, bottom:-1,
+                  height:2, background:"var(--accent)" }}></span>}
+              </button>
+            ))}
+            <div style={{ flex:1, borderBottom:"none" }}></div>
+          </nav>
+        </div>
+      </header>
+
+      {/* ===== 主体 ===== */}
+      <main style={{ maxWidth:maxw, margin:"0 auto", padding:pad, paddingBottom:60 }}
+        className="frame shell-pad">
+        <div style={{ paddingTop:40 }}>
+          {/* 页眉行 */}
+          <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between",
+            gap:20, marginBottom:34, flexWrap:"wrap" }}>
+            <div>
+              <div className="label" style={{ fontSize:11, color:"var(--accent)", letterSpacing:"0.26em" }}>
+                {TABS.find(x=>x.id===tab).en}
+              </div>
+              <h1 className="cjk-serif" style={{ margin:"8px 0 0", fontSize:34, fontWeight:600,
+                letterSpacing:"0.02em" }}>{pageTitle}</h1>
+            </div>
+          </div>
+
+          {tab==="overview" && <Overview accent={ac} />}
+          {tab==="stats"    && <Stats />}
+          {tab==="bills"    && <Bills />}
+          {tab==="assets"   && <Assets />}
+          {tab==="report"   && <Report />}
+        </div>
+      </main>
+
+      {/* ===== Tweaks ===== */}
+      <TweaksPanel>
+        <TweakSection label="画境" />
+        <TweakWash value={t.wash} onChange={v=>setTweak("wash",v)} />
+        <TweakToggle label="油画颗粒纹理" value={t.grain} onChange={v=>setTweak("grain",v)} />
+        <TweakSection label="版面" />
+        <TweakRadio label="疏密" value={t.density}
+          options={[{value:"compact",label:"紧凑"},{value:"regular",label:"标准"},{value:"comfy",label:"舒朗"}]}
+          onChange={v=>setTweak("density",v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+// 画境选择器 —— 大色块预览 + 中文名
+function TweakWash({ value, onChange }){
+  return (
+    <div style={{ padding:"10px 0", borderBottom:"1px solid rgba(0,0,0,0.06)" }}>
+      <div style={{ fontSize:12.5, marginBottom:10, opacity:0.7 }}>选一种画意底子</div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+        {Object.entries(WASH).map(([name,w])=>(
+          <button key={name} onClick={()=>onChange(name)} title={name}
+            style={{ border: value===name?"2px solid #1a1a1a":"1px solid rgba(0,0,0,.14)",
+              borderRadius:3, padding:0, overflow:"hidden", cursor:"pointer", background:"none" }}>
+            <div style={{ height:38, background:`radial-gradient(120% 100% at 30% 0%, ${w.b1}, transparent 60%), radial-gradient(100% 100% at 90% 100%, ${w.b2}, transparent 60%), ${w.base}` }}></div>
+            <div style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 8px",
+              background:"#fff", borderTop:"1px solid rgba(0,0,0,.08)" }}>
+              <span style={{ width:10, height:10, borderRadius:999, background:w.accent }}></span>
+              <span style={{ fontSize:12, color:"#1a1a1a", fontWeight: value===name?600:400 }}>{name}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);

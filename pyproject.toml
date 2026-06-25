@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "water-ledger"
+version = "0.1.0"
+description = "Local-first personal finance ledger for Chinese payment exports and asset snapshots."
+requires-python = ">=3.11"
+dependencies = [
+  "pandas",
+  "pypdf",
+  "openpyxl",
+  "PyYAML",
+]
+
+[project.scripts]
+water-ledger = "water_ledger.cli:main"
+
+[tool.setuptools.package-data]
+water_ledger = ["storage/*.sql", "resources/*.yaml"]
+web_app = ["static/design/*"]

@@ -1,0 +1,112 @@
+// ============ 共享 UI 原语 ============
+const { useState, useEffect, useRef, useMemo } = React;
+
+// 千分位格式化
+function fmt(n, dp=0){
+  const neg = n < 0;
+  const x = Math.abs(n).toLocaleString("zh-CN",{minimumFractionDigits:dp,maximumFractionDigits:dp});
+  return (neg?"-":"") + x;
+}
+// 金额组件：符号 + 大数字 + 小数  ¥
+function Money({ value, dp=0, sign=false, size=1, color, currency="¥", className="" }){
+  const neg = value < 0;
+  const pos = value > 0;
+  const c = color || "var(--ink)";
+  const s = sign ? (pos?"+":neg?"−":"") : (neg?"−":"");
+  const isDidone = className.includes("didone");
+  const base = isDidone ? "dnum" : "num";
+  return (
+    <span className={base+" "+className} style={{ color:c, fontSize:`${size}em`, whiteSpace:"nowrap", fontWeight: isDidone?600:500 }}>
+      <span style={{ opacity:0.55, fontWeight:400, fontFamily: isDidone?"var(--didone)":"inherit" }}>{currency}</span>{s}{fmt(Math.abs(value),dp)}
+    </span>
+  );
+}
+
+// 涨跌色
+const dirColor = (n)=> n>0 ? "var(--pos)" : n<0 ? "var(--neg)" : "var(--ink-3)";
+
+// 小标签
+function Tag({ children, glyph, tone="ink", onClick, active, title }){
+  const tones = {
+    ink:{ bg:"var(--paper-3)", bd:"var(--line)", fg:"var(--ink-2)" },
+    accent:{ bg:"var(--accent-soft)", bd:"color-mix(in oklch, var(--accent) 35%, transparent)", fg:"var(--accent)" },
+    pos:{ bg:"color-mix(in oklch, var(--pos) 12%, var(--paper))", bd:"color-mix(in oklch, var(--pos) 30%, transparent)", fg:"var(--pos)" },
+    neg:{ bg:"color-mix(in oklch, var(--neg) 12%, var(--paper))", bd:"color-mix(in oklch, var(--neg) 30%, transparent)", fg:"var(--neg)" },
+  };
+  const ts = tones[tone] || tones.ink;
+  return (
+    <button onClick={onClick} title={title} style={{
+      display:"inline-flex", alignItems:"center", gap:6,
+      padding:"3px 9px", borderRadius:999,
+      background: active ? "var(--ink)" : ts.bg,
+      border:`1px solid ${active?"var(--ink)":ts.bd}`,
+      color: active ? "var(--paper)" : ts.fg,
+      fontSize:12.5, fontFamily:"var(--sans)", lineHeight:1.5, whiteSpace:"nowrap",
+      transition:"all .18s ease", cursor: onClick?"pointer":"default",
+    }}>
+      {glyph && <span style={{ fontSize:11, opacity:0.8 }}>{glyph}</span>}
+      {children}
+    </button>
+  );
+}
+
+// 区块小标题（栏目眉）— Archivo 大写横眉
+function Eyebrow({ children, n }){
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:11, marginBottom:15 }}>
+      {n && <span className="label" style={{ fontSize:10.5, color:"var(--accent)", letterSpacing:"0.12em", fontWeight:700 }}>{n}</span>}
+      <span className="label" style={{ fontSize:11.5, color:"var(--ink-3)", fontWeight:600, whiteSpace:"nowrap" }}>{children}</span>
+      <span style={{ flex:1, height:1, background:"var(--line)", alignSelf:"center" }}></span>
+    </div>
+  );
+}
+
+// 卡片 — 发丝边 + 白色面板
+function Card({ children, style, pad=24, className="", onClick, hover, clean=false }){
+  const [h,setH] = useState(false);
+  return (
+    <div className={className} onClick={onClick}
+      onMouseEnter={()=>hover&&setH(true)} onMouseLeave={()=>hover&&setH(false)}
+      style={{
+        background: "white",
+        backdropFilter: "none",
+        WebkitBackdropFilter: "none",
+        border: clean ? "1px solid oklch(0.84 0.025 245 / 0.9)" : "1px solid var(--line)",
+        borderRadius:2, padding:pad, position:"relative",
+        boxShadow: h ? "0 14px 44px -22px oklch(0.35 0.03 60 / 0.6)" : clean ? "0 18px 44px -34px oklch(0.32 0.06 245 / 0.45)" : "none",
+        transform: h ? "translateY(-2px)" : "none",
+        transition:"all .22s cubic-bezier(.2,.7,.2,1)",
+        cursor: onClick?"pointer":"default",
+        ...style }}>
+      {children}
+    </div>
+  );
+}
+
+// 迷你占比条
+function Bar({ pct, color, h=4 }){
+  return (
+    <div style={{ height:h, background:"var(--paper-sink)", borderRadius:h, overflow:"hidden" }}>
+      <div style={{ width:`${Math.max(2,Math.min(100,pct))}%`, height:"100%",
+        background: color||"var(--ink)", borderRadius:h, transition:"width .6s cubic-bezier(.2,.7,.2,1)" }}></div>
+    </div>
+  );
+}
+
+// 搜索 / 文本输入
+function Field({ value, onChange, placeholder, glyph }){
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 13px",
+      background:"white",
+      border:"1px solid var(--line)", borderRadius:2, minWidth:0 }}>
+      {glyph && <span style={{ color:"var(--ink-4)", fontSize:14 }}>{glyph}</span>}
+      <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        style={{ flex:1, border:"none", outline:"none", background:"transparent",
+          color:"var(--ink)", fontSize:14, minWidth:0 }} />
+      {value && <button onClick={()=>onChange("")} style={{ border:"none", background:"none",
+        color:"var(--ink-4)", fontSize:15, padding:0, lineHeight:1 }}>×</button>}
+    </div>
+  );
+}
+
+Object.assign(window, { fmt, Money, dirColor, Tag, Eyebrow, Card, Bar, Field });

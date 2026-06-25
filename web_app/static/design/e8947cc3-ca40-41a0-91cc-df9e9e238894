@@ -1,0 +1,256 @@
+// ============ 资产 Assets ============
+function buildAssetGroups(){
+  const groups = [
+    { group:"银行卡", icon:"●", color:"oklch(0.47 0.18 262)", items:[] },
+    { group:"互联网钱包", icon:"◆", color:"oklch(0.58 0.16 214)", items:[] },
+    { group:"美股账户", icon:"▲", color:"oklch(0.43 0.17 286)", usd:true, items:[] },
+    { group:"负债", icon:"▽", debt:true, items:[] },
+  ];
+  const byGroup = Object.fromEntries(groups.map(g=>[g.group,g]));
+  ASSET_TIMELINE.accounts.forEach(a=>{
+    const cny = Number(a.latest ?? a.manualBalance ?? 0);
+    byGroup[a.group].items.push({
+      id:a.itemId,
+      accountId:a.id,
+      name:a.name,
+      sub:a.sub,
+      cny,
+      usd:a.usd ? cny / USD_RATE : undefined,
+      group:a.group,
+      color:byGroup[a.group].color,
+    });
+  });
+  return groups;
+}
+
+function AccountTxnRow({ t }){
+  const src = SOURCES[t.src] || SOURCES.boc;
+  const channel = window.CHANNELS?.[t.channel] || src;
+  const sub = [channel.label, t.detail].filter(Boolean).join(" · ");
+  return (
+    <div className="bills-grid" style={{ display:"grid", gridTemplateColumns:"82px 1fr 96px 132px 132px",
+      alignItems:"center", gap:16, padding:"13px 18px", borderBottom:"1px solid var(--line)" }}>
+      <div>
+        <div className="mono" style={{ fontSize:12, color:"var(--ink-3)" }}>{t.day?.slice(5)}</div>
+        <div className="mono" style={{ fontSize:11, color:"var(--ink-4)", marginTop:2 }}>{t.time}</div>
+      </div>
+      <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
+        <span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
+          width:26, height:26, borderRadius:999, flexShrink:0,
+          border:"1px solid var(--line-2)", color:"var(--ink-3)", fontSize:11 }}>{src.glyph}</span>
+        <div style={{ minWidth:0, flex:1 }}>
+          <div className="cjk-serif" style={{ fontSize:14.5, color:"var(--ink)", overflow:"hidden",
+            textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.merchant}</div>
+          <div className="mono" title={sub} style={{ fontSize:10.5, color:"var(--ink-4)", marginTop:2,
+            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</div>
+        </div>
+      </div>
+      <Tag glyph={CAT_GLYPH[t.cat]}>{t.cat}</Tag>
+      <div style={{ textAlign:"right" }}>
+        <Money value={t.amount} sign dp={Number.isInteger(t.amount)?0:2}
+          color={t.amount>0?"var(--pos)":"var(--ink)"} size={1.02} />
+      </div>
+      <div style={{ textAlign:"right" }}>
+        {t.balanceAfter == null
+          ? <span className="mono" style={{ color:"var(--ink-4)", fontSize:12 }}>--</span>
+          : <Money value={t.balanceAfter} dp={2} size={0.98} color="var(--ink-2)" />}
+      </div>
+    </div>
+  );
+}
+
+function AccountTxnPanel({ account, txns }){
+  const grouped = useMemo(()=>{
+    const m = {};
+    txns.forEach(t=>{
+      const day = t.day || t.date.slice(0,10);
+      if(!m[day]) m[day] = [];
+      m[day].push(t);
+    });
+    return Object.entries(m).sort(([a],[b])=>b.localeCompare(a));
+  },[txns]);
+  const expense = txns.filter(t=>t.amount<0).reduce((s,t)=>s-t.amount,0);
+  const income = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+
+  return (
+    <Card pad={0}>
+      <div style={{ display:"flex", gap:18, flexWrap:"wrap", alignItems:"baseline",
+        padding:"15px 18px", borderBottom:"1.5px solid var(--ink)" }}>
+        <span className="cjk-serif" style={{ fontSize:17, color:"var(--ink)" }}>{account?.name || "账户流水"}</span>
+        <span className="mono" style={{ fontSize:11.5, color:"var(--ink-4)" }}>{txns.length} 笔</span>
+        <span style={{ flex:1 }}></span>
+        <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>支出 <Money value={-expense} sign size={0.9}/></span>
+        <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>收入 <Money value={income} sign color="var(--pos)" size={0.9}/></span>
+      </div>
+      <div className="bills-grid" style={{ display:"grid", gridTemplateColumns:"82px 1fr 96px 132px 132px",
+        gap:16, padding:"11px 18px", borderBottom:"1px solid var(--line)",
+        fontSize:11, letterSpacing:"0.14em", color:"var(--ink-3)" }}>
+        <span>时间</span><span>商户 / 来源</span><span>分类</span><span style={{textAlign:"right"}}>金额</span><span style={{textAlign:"right"}}>交易后余额</span>
+      </div>
+      {txns.length===0
+        ? <div style={{ padding:"54px 0", textAlign:"center", color:"var(--ink-4)",
+            fontFamily:"var(--cjk-serif)", fontSize:14 }}>这个账户暂无流水</div>
+        : grouped.map(([day, rows])=>(
+            <div key={day}>
+              <div style={{ display:"flex", alignItems:"baseline", gap:12, padding:"12px 18px 8px",
+                borderBottom:"1px solid var(--line)", background:"white" }}>
+                <span className="cjk-serif" style={{ fontSize:14.5, color:"var(--ink)" }}>{day}</span>
+                <span className="mono" style={{ fontSize:11, color:"var(--ink-4)" }}>{rows.length} 笔</span>
+              </div>
+              {rows.map(t=> <AccountTxnRow key={t.id} t={t} />)}
+            </div>
+          ))
+      }
+    </Card>
+  );
+}
+
+function AccountDetailPage({ account, txns, onBack }){
+  const expense = txns.filter(t=>t.amount<0).reduce((s,t)=>s-t.amount,0);
+  const income = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  return (
+    <div className="fadeUp" style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+        <button onClick={onBack}
+          style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"8px 12px",
+            border:"1px solid var(--line-2)", borderRadius:2, background:"white",
+            color:"var(--ink-2)", fontSize:13, fontFamily:"var(--cjk-serif)" }}>
+          <span style={{ fontSize:15 }}>‹</span>返回资产
+        </button>
+        <div style={{ flex:1, minWidth:220 }}>
+          <div className="cjk-serif" style={{ fontSize:22, color:"var(--ink)", lineHeight:1.1 }}>{account?.name || "账户流水"}</div>
+          <div className="mono" style={{ fontSize:11, color:"var(--ink-4)", marginTop:5 }}>
+            {[account?.sub, account?.group].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:22, alignItems:"baseline", flexWrap:"wrap", justifyContent:"flex-end" }}>
+          <span className="mono" style={{ fontSize:11.5, color:"var(--ink-4)" }}>{txns.length} 笔流水</span>
+          <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>支出 <Money value={-expense} sign size={0.9}/></span>
+          <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>收入 <Money value={income} sign color="var(--pos)" size={0.9}/></span>
+          <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>当前余额 <Money value={account?.cny || 0} dp={2} size={0.95}/></span>
+        </div>
+      </div>
+      <AccountTxnPanel account={account} txns={txns} />
+      <div className="mono" style={{ fontSize:11, color:"var(--ink-4)", textAlign:"center" }}>
+        银行交易显示每笔之后的账户余额；钱包流水暂无逐笔余额时显示 --
+      </div>
+    </div>
+  );
+}
+
+function AssetRow({ item, maxAbs, debt, usd, onClick }){
+  const [hover,setHover] = useState(false);
+  return (
+    <button onClick={onClick} onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} className="asset-grid"
+      style={{ display:"grid", gridTemplateColumns:"1fr 120px 150px", gap:18, alignItems:"center",
+        width:"100%", padding:"15px 18px", border:"none", borderBottom:"1px solid var(--line)",
+        background: hover?"var(--paper-2)":"transparent",
+        transition:"background .15s", textAlign:"left", cursor:"pointer", font:"inherit", color:"inherit" }}>
+      <div style={{ minWidth:0 }}>
+        <div className="cjk-serif" style={{ fontSize:14.5, color:"var(--ink)" }}>{item.name}</div>
+        {item.sub && <div className="mono" style={{ fontSize:10.5, color:"var(--ink-4)", marginTop:3 }}>{item.sub}</div>}
+      </div>
+      <div className="asset-bar">
+        <Bar pct={maxAbs ? Math.abs(item.cny)/maxAbs*100 : 0} h={5}
+          color={debt?"var(--neg)":(item.color || "var(--accent)")} />
+      </div>
+      <div style={{ textAlign:"right" }}>
+        <Money value={item.cny} dp={2} size={1.05} color={debt?"var(--neg)":"var(--ink)"} />
+        {usd && <div className="mono" style={{ fontSize:10.5, color:"var(--ink-4)", marginTop:3 }}>
+          ${fmt(item.usd || 0,2)} × {USD_RATE}
+        </div>}
+      </div>
+      <span style={{ position:"absolute", right:10, opacity:hover?1:0, color:"var(--ink-4)" }}>›</span>
+    </button>
+  );
+}
+
+function Assets(){
+  const groups = useMemo(()=>buildAssetGroups(),[]);
+  const allItems = groups.flatMap(g=>g.items);
+  const [drillAccountId, setDrillAccountId] = useState(null);
+  const drillAccount = allItems.find(i=>i.accountId===drillAccountId) || null;
+  const maxAbs = Math.max(1, ...allItems.map(i=>Math.abs(i.cny)));
+  const netWorth = allItems.reduce((s,i)=>s+i.cny,0);
+  const totalAsset = allItems.filter(i=>i.cny>0).reduce((s,i)=>s+i.cny,0);
+  const totalDebt = allItems.filter(i=>i.cny<0).reduce((s,i)=>s+i.cny,0);
+  const accountTxns = drillAccount ? (ASSET_TIMELINE.txnsByAccount?.[String(drillAccount.accountId)] || []) : [];
+
+  const comp = groups.filter(g=>!g.debt).map(g=>({
+    group:g.group, icon:g.icon,
+    color:g.color,
+    sum:g.items.reduce((s,i)=>s+i.cny,0)
+  }));
+
+  if(drillAccount){
+    return <AccountDetailPage account={drillAccount} txns={accountTxns} onBack={()=>setDrillAccountId(null)} />;
+  }
+
+  return (
+    <div className="fadeUp" style={{ display:"flex", flexDirection:"column", gap:24 }}>
+      {/* 顶部摘要 */}
+      <div style={{ display:"grid", gridTemplateColumns:"1.2fr 1fr 1fr", gap:1,
+        background:"var(--line)", border:"1px solid var(--line)" }} className="as-summary">
+        {[
+          { l:"净资产", v:netWorth, c:"var(--hero)" },
+          { l:"总资产", v:totalAsset, c:"var(--pos)" },
+          { l:"总负债", v:totalDebt, c:"var(--neg)" },
+        ].map((s,i)=>(
+          <div key={i} style={{ background:"white", padding:"20px 22px" }}>
+            <div style={{ fontSize:12, letterSpacing:"0.1em", color:"var(--ink-3)", marginBottom:8 }}>{s.l}</div>
+            <Money value={s.v} dp={2} size={s.big?1.9:1.4} color={s.c} className={s.big?"didone":""} />
+          </div>
+        ))}
+      </div>
+
+      {/* 资产组成条 */}
+      <Card pad={22}>
+        <Eyebrow>资产组成</Eyebrow>
+        <div style={{ display:"flex", height:14, borderRadius:2, overflow:"hidden", marginBottom:14,
+          border:"1px solid var(--line)" }}>
+          {comp.map((c,i)=>(
+            <div key={c.group} title={`${c.group} ¥${fmt(c.sum,2)}`}
+              style={{ width:`${totalAsset ? c.sum/totalAsset*100 : 0}%`,
+                background:c.color }}></div>
+          ))}
+        </div>
+        <div style={{ display:"flex", gap:22, flexWrap:"wrap" }}>
+          {comp.map((c,i)=>(
+            <div key={c.group} style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ width:9, height:9, borderRadius:2, background:c.color }}></span>
+              <span className="cjk-serif" style={{ fontSize:13, color:"var(--ink-2)" }}>{c.group}</span>
+              <span className="num" style={{ fontSize:12, color:"var(--ink-4)" }}>{totalAsset ? (c.sum/totalAsset*100).toFixed(2) : "0.00"}%</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* 分组明细 */}
+      {groups.map((g)=>{
+        const sum = g.items.reduce((s,i)=>s+i.cny,0);
+        return (
+          <div key={g.group}>
+            <div style={{ display:"flex", alignItems:"baseline", gap:12, marginBottom:12 }}>
+              <span style={{ fontSize:14, color: g.debt?"var(--neg)":"var(--ink-3)" }}>{g.icon}</span>
+              <span className="cjk-serif" style={{ fontSize:16, fontWeight:500 }}>{g.group}</span>
+              <span style={{ flex:1, height:1, background:"var(--line)" }}></span>
+              <Money value={sum} dp={2} size={1.05} color={g.debt?"var(--neg)":"var(--ink-2)"} />
+            </div>
+            <Card pad={0}>
+              {g.items.map(item=>(
+                <AssetRow key={item.id} item={item} maxAbs={maxAbs} debt={g.debt} usd={g.usd}
+                  onClick={()=>setDrillAccountId(item.accountId)} />
+              ))}
+            </Card>
+          </div>
+        );
+      })}
+
+      <div className="mono" style={{ fontSize:11, color:"var(--ink-4)", textAlign:"center" }}>
+        点击账户进入流水详情；银行交易显示每笔之后的账户余额，钱包余额需后续录入快照
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Assets });

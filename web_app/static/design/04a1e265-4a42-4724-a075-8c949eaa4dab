@@ -1,0 +1,289 @@
+// ============ 统计 Stats ============
+// 冷色系分类配色（与蓝色画境同族，可区分）
+function catColor(i, n){
+  const t = n<=1 ? 0 : i/(n-1);
+  const L = 0.44 + t*0.30;
+  const H = 214 + i*26;
+  return `oklch(${L.toFixed(3)} 0.105 ${H})`;
+}
+
+// —— 甜甜圈饼图 ——
+function Donut({ data, total, size=240, hovered, onHover }){
+  const R = size/2 - 14, cx = size/2, cy = size/2, C = 2*Math.PI*R, thick = 30, gap = 0.012;
+  let acc = 0;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display:"block" }}>
+      <g transform={`rotate(-90 ${cx} ${cy})`}>
+        {data.map((d,i)=>{
+          const frac = d.v/total;
+          const dash = Math.max(0, frac - gap) * C;
+          const seg = (
+            <circle key={d.cat} cx={cx} cy={cy} r={R} fill="none"
+              stroke={catColor(i,data.length)}
+              strokeWidth={hovered===d.cat ? thick+7 : thick}
+              strokeDasharray={`${dash} ${C-dash}`}
+              strokeDashoffset={-acc*C}
+              style={{ transition:"stroke-width .18s", cursor:"pointer", opacity: hovered&&hovered!==d.cat?0.45:1 }}
+              onMouseEnter={()=>onHover(d.cat)} onMouseLeave={()=>onHover(null)} />
+          );
+          acc += frac;
+          return seg;
+        })}
+      </g>
+      {/* 中心 */}
+      <text x={cx} y={cy-8} textAnchor="middle" fontFamily="var(--label)" fontSize="10.5"
+        letterSpacing="0.18em" fill="var(--ink-3)">总支出</text>
+      <text x={cx} y={cy+20} textAnchor="middle" fontFamily="var(--didone)" fontWeight="700"
+        fontSize="26" fill="var(--hero)">¥{fmt(total)}</text>
+    </svg>
+  );
+}
+
+function PeriodTabs({ value, onChange }){
+  const opts=[["week","周"],["month","月"],["year","年"],["all","全部"]];
+  return (
+    <div style={{ display:"inline-flex", border:"1px solid var(--line-2)", borderRadius:2, overflow:"hidden",
+      background:"white" }}>
+      {opts.map((o,i)=>(
+        <button key={o[0]} onClick={()=>onChange(o[0])}
+          style={{ padding:"8px 22px", border:"none", borderLeft:i>0?"1px solid var(--line)":"none",
+            background: value===o[0]?"var(--ink)":"transparent", color: value===o[0]?"var(--paper)":"var(--ink-3)",
+            fontSize:14, fontFamily:"var(--cjk-serif)", letterSpacing:"0.05em", transition:"all .18s" }}>
+          {o[1]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StatBlock({ label, value, sign, hero, sub }){
+  return (
+    <div style={{ padding:"22px 24px" }}>
+      <div className="label" style={{ fontSize:10.5, color:"var(--ink-3)", marginBottom:13 }}>{label}</div>
+      <Money value={value} sign={sign} size={hero?1.75:1.5}
+        color={hero?"var(--hero)": sign?dirColor(value):"var(--ink)"} className={hero?"didone":""} />
+      {sub && <div className="mono" style={{ fontSize:10.5, color:"var(--ink-4)", marginTop:9 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function statTxnDateTime(t){
+  const day = t.day || (t.date || "").slice(0,10);
+  const time = t.time || (t.date || "").slice(11,16);
+  if(!day) return time || "";
+  const label = day.slice(5).replace("-", "/");
+  return time ? `${label} ${time}` : label;
+}
+
+function StatTxnRow({ t, income=false }){
+  const src = SOURCES[t.src] || { label:t.src || "来源", glyph:"·" };
+  const sub = [src.label, t.detail].filter(Boolean).join(" · ");
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"112px 1fr 96px 112px", gap:14,
+      alignItems:"center", padding:"12px 6px", borderBottom:"1px solid var(--line)" }} className="txn-row">
+      <span className="mono" style={{ fontSize:11.5, color:"var(--ink-4)", lineHeight:1.35 }}>
+        {statTxnDateTime(t)}
+      </span>
+      <span style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
+        <span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
+          width:24, height:24, borderRadius:999, flexShrink:0,
+          border:"1px solid var(--line-2)", color:"var(--ink-3)", fontSize:10 }}>{src.glyph}</span>
+        <span style={{ minWidth:0, flex:1 }}>
+          <span className="cjk-serif" style={{ display:"block", fontSize:13.8, color:"var(--ink-2)",
+            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.merchant}</span>
+          <span className="mono" title={sub} style={{ display:"block", fontSize:10.5, color:"var(--ink-4)", marginTop:2,
+            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</span>
+        </span>
+      </span>
+      <Tag tone={income?"pos":undefined} glyph={CAT_GLYPH[t.cat]}>{t.cat}</Tag>
+      <Money value={t.amount} sign={income} color={income?"var(--pos)":"var(--ink)"} size={0.98} />
+    </div>
+  );
+}
+
+function CatRow({ d, idx, n, total, rows, sort, onSort, open, onToggle }){
+  const txns = useMemo(()=>{
+    const list = cashflowTxns(rows).filter(t=>t.amount<0 && t.cat===d.cat);
+    return sort==="amount"
+      ? [...list].sort((a,b)=>Math.abs(b.amount)-Math.abs(a.amount))
+      : [...list].sort((a,b)=> a.date<b.date?1:-1);
+  },[rows,d.cat,sort]);
+  const color = catColor(idx,n);
+  return (
+    <div style={{ borderBottom:"1px solid var(--line)" }}>
+      <button onClick={onToggle} style={{ width:"100%", display:"grid",
+        gridTemplateColumns:"22px 1fr 120px 92px 64px 18px", gap:14, alignItems:"center",
+        padding:"14px 4px", border:"none", background: open?"color-mix(in oklch, var(--accent) 6%, transparent)":"transparent",
+        textAlign:"left", transition:"background .15s" }} className="cat-row">
+        <span style={{ width:11, height:11, borderRadius:3, background:color }}></span>
+        <span className="cjk-serif" style={{ fontSize:15, color:"var(--ink)" }}>
+          <span style={{ color:"var(--ink-4)", marginRight:9, fontSize:12 }}>{CAT_GLYPH[d.cat]}</span>{d.cat}
+          <span className="mono" style={{ fontSize:11, color:"var(--ink-4)", marginLeft:10 }}>{txns.length} 笔</span>
+        </span>
+        <div className="cat-bar"><Bar pct={d.v/total*100} color={color} h={6} /></div>
+        <Money value={-d.v} size={1.0} />
+        <span className="num cat-pct" style={{ textAlign:"right", fontSize:12.5, color:"var(--ink-3)" }}>{(d.v/total*100).toFixed(1)}%</span>
+        <span style={{ textAlign:"center", color:"var(--ink-4)", fontSize:11,
+          transform:open?"rotate(90deg)":"none", transition:"transform .2s" }}>▸</span>
+      </button>
+
+      {open && (
+        <div className="fadeUp" style={{ padding:"6px 4px 18px", borderTop:"1px dashed var(--line)" }}>
+          <div style={{ display:"flex", justifyContent:"flex-end", gap:8, padding:"10px 0 12px" }}>
+            <span className="label" style={{ fontSize:9.5, color:"var(--ink-4)", alignSelf:"center" }}>排序</span>
+            {[["time","时间"],["amount","金额"]].map(o=>(
+              <button key={o[0]} onClick={()=>onSort(o[0])} style={{ padding:"3px 12px", borderRadius:999,
+                border:`1px solid ${sort===o[0]?"var(--ink)":"var(--line)"}`,
+                background: sort===o[0]?"var(--ink)":"transparent", color: sort===o[0]?"var(--paper)":"var(--ink-3)",
+                fontSize:12, fontFamily:"var(--cjk-serif)" }}>{o[1]}</button>
+            ))}
+          </div>
+          {txns.map(t=><StatTxnRow key={t.id} t={t} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IncomeRecords({ rows, sort, onSort }){
+  const txns = useMemo(()=>{
+    const list = cashflowTxns(rows).filter(t=>t.amount>0);
+    return sort==="amount"
+      ? [...list].sort((a,b)=>b.amount-a.amount)
+      : [...list].sort((a,b)=> a.date<b.date?1:-1);
+  },[rows,sort]);
+  const total = txns.reduce((s,t)=>s+t.amount,0);
+  return (
+    <div>
+      <Eyebrow n="03">收入账单记录</Eyebrow>
+      <Card pad={"4px 22px"}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+          padding:"14px 4px", borderBottom:"1.5px solid var(--ink)" }}>
+          <div style={{ display:"flex", alignItems:"baseline", gap:18 }}>
+            <span className="cjk-serif" style={{ fontSize:15, color:"var(--ink)" }}>收入</span>
+            <span className="mono" style={{ fontSize:11, color:"var(--ink-4)" }}>{txns.length} 笔</span>
+            <Money value={total} sign color="var(--pos)" size={1.0} />
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <span className="label" style={{ fontSize:9.5, color:"var(--ink-4)", alignSelf:"center" }}>排序</span>
+            {[["time","时间"],["amount","金额"]].map(o=>(
+              <button key={o[0]} onClick={()=>onSort(o[0])} style={{ padding:"3px 12px", borderRadius:999,
+                border:`1px solid ${sort===o[0]?"var(--ink)":"var(--line)"}`,
+                background: sort===o[0]?"var(--ink)":"transparent", color: sort===o[0]?"var(--paper)":"var(--ink-3)",
+                fontSize:12, fontFamily:"var(--cjk-serif)" }}>{o[1]}</button>
+            ))}
+          </div>
+        </div>
+        {txns.length===0
+          ? <div style={{ padding:"34px 0", textAlign:"center", color:"var(--ink-4)",
+              fontFamily:"var(--cjk-serif)", fontSize:14 }}>该周期暂无收入记录</div>
+          : txns.map(t=><StatTxnRow key={t.id} t={t} income />)}
+      </Card>
+    </div>
+  );
+}
+
+function Stats(){
+  const [period, setPeriod] = useState("month");
+  const [offset, setOffset] = useState(0);
+  const [hovered, setHovered] = useState(null);
+  const [open, setOpen] = useState(null);
+  const [sort, setSort] = useState("time");
+  const [incomeSort, setIncomeSort] = useState("time");
+
+  const { rows, days, label, canPrev, canNext } = useMemo(()=>filterPeriod(ALL_TXNS, period, offset),[period,offset]);
+  const countableRows = cashflowTxns(rows);
+  const expense = countableRows.filter(t=>t.amount<0).reduce((s,t)=>s-t.amount,0);
+  const income  = countableRows.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const balance = income - expense;
+  const dailyAvg = expense/days;
+  const cats = useMemo(()=>expenseByCat(rows),[rows]);
+
+  return (
+    <div className="fadeUp" style={{ display:"flex", flexDirection:"column", gap:26 }}>
+      {/* 周期切换 + 时间导航 */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:14 }}>
+        <PeriodTabs value={period} onChange={p=>{ setPeriod(p); setOffset(0); setOpen(null); }} />
+        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+          {period!=="all" && (
+            <div style={{ display:"flex", alignItems:"center", border:"1px solid var(--line-2)", borderRadius:2,
+              overflow:"hidden", background:"white" }}>
+              <button onClick={()=>{ if(canPrev){ setOffset(o=>o+1); setOpen(null); } }} disabled={!canPrev}
+                style={{ padding:"8px 13px", border:"none", borderRight:"1px solid var(--line)", background:"transparent",
+                  color: canPrev?"var(--ink-2)":"var(--ink-4)", fontSize:15, cursor:canPrev?"pointer":"not-allowed",
+                  opacity:canPrev?1:0.35 }} title="上一周期">‹</button>
+              <span className="cjk-serif" style={{ padding:"0 18px", fontSize:14.5, color:"var(--ink)",
+                minWidth:120, textAlign:"center", letterSpacing:"0.02em" }}>{label}</span>
+              <button onClick={()=>{ if(canNext){ setOffset(o=>o-1); setOpen(null); } }} disabled={!canNext}
+                style={{ padding:"8px 13px", border:"none", borderLeft:"1px solid var(--line)", background:"transparent",
+                  color: canNext?"var(--ink-2)":"var(--ink-4)", fontSize:15, cursor:canNext?"pointer":"not-allowed",
+                  opacity:canNext?1:0.35 }} title="下一周期">›</button>
+            </div>
+          )}
+          <span className="mono" style={{ fontSize:11.5, color:"var(--ink-4)", whiteSpace:"nowrap" }}>
+            {rows.length} 笔 · {days} 天
+          </span>
+        </div>
+      </div>
+
+      {/* 四项统计 */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:1,
+        background:"var(--line)", border:"1px solid var(--line-2)" }} className="st-stat4">
+        <div style={{ background:"white" }}>
+          <StatBlock label="支出" value={-expense} sign sub={`${countableRows.filter(t=>t.amount<0).length} 笔`} />
+        </div>
+        <div style={{ background:"white" }}>
+          <StatBlock label="收入" value={income} sign sub={`${countableRows.filter(t=>t.amount>0).length} 笔`} />
+        </div>
+        <div style={{ background:"white" }}>
+          <StatBlock label="结余" value={balance} sign hero sub={income>0?`储蓄率 ${Math.round(balance/income*100)}%`:""} />
+        </div>
+        <div style={{ background:"white" }}>
+          <StatBlock label="日均支出" value={-Math.round(dailyAvg)} sub={`÷ ${days} 天`} />
+        </div>
+      </div>
+
+      {/* 支出分类详情 */}
+      <Card pad={28} clean>
+        <Eyebrow n="01">支出分类详情 · {label}</Eyebrow>
+        <div style={{ display:"grid", gridTemplateColumns:"260px 1fr", gap:40, alignItems:"center" }} className="st-pie">
+          <div style={{ display:"flex", justifyContent:"center" }}>
+            {expense>0
+              ? <Donut data={cats} total={expense} size={240} hovered={hovered} onHover={setHovered} />
+              : <div style={{ color:"var(--ink-4)", fontFamily:"var(--cjk-serif)", padding:"60px 0" }}>该周期暂无支出</div>}
+          </div>
+          {/* 图例 */}
+          <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+            {cats.slice(0,7).map((d,i)=>(
+              <div key={d.cat} onMouseEnter={()=>setHovered(d.cat)} onMouseLeave={()=>setHovered(null)}
+                style={{ display:"flex", alignItems:"center", gap:11,
+                  opacity: hovered&&hovered!==d.cat?0.5:1, transition:"opacity .15s" }}>
+                <span style={{ width:11, height:11, borderRadius:3, background:catColor(i,cats.length) }}></span>
+                <span className="cjk-serif" style={{ fontSize:13.5, color:"var(--ink-2)", width:54 }}>{d.cat}</span>
+                <div style={{ flex:1 }}><Bar pct={d.v/expense*100} color={catColor(i,cats.length)} h={5} /></div>
+                <span className="num" style={{ fontSize:12.5, color:"var(--ink-2)", width:78, textAlign:"right" }}>¥{fmt(d.v)}</span>
+                <span className="num" style={{ fontSize:11.5, color:"var(--ink-4)", width:42, textAlign:"right" }}>{(d.v/expense*100).toFixed(1)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {/* 分类明细（可展开 · 可排序）*/}
+      <div>
+        <Eyebrow n="02">展开看明细 · 点击分类</Eyebrow>
+        <Card pad={"4px 22px"}>
+          {cats.map((d,i)=>(
+            <CatRow key={d.cat} d={d} idx={i} n={cats.length} total={expense} rows={rows}
+              sort={sort} onSort={setSort}
+              open={open===d.cat} onToggle={()=>setOpen(open===d.cat?null:d.cat)} />
+          ))}
+        </Card>
+      </div>
+
+      <IncomeRecords rows={rows} sort={incomeSort} onSort={setIncomeSort} />
+    </div>
+  );
+}
+
+Object.assign(window, { Stats });

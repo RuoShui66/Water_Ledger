@@ -1,0 +1,211 @@
+// ============ 账单 Bills ============
+function CatMenu({ current, onPick, onClose }){
+  const ref = useRef(null);
+  useEffect(()=>{
+    const h = e=>{ if(ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener("mousedown",h);
+    return ()=>document.removeEventListener("mousedown",h);
+  },[]);
+  return (
+    <div ref={ref} style={{ position:"absolute", top:"100%", left:0, marginTop:6, zIndex:30,
+      background:"white", border:"1px solid var(--line-2)", borderRadius:4, padding:6,
+      boxShadow:"0 14px 40px -12px oklch(0.3 0.02 60 / .45)",
+      display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:2, width:220 }}>
+      {CATEGORIES.map(c=>(
+        <button key={c} onClick={()=>{ onPick(c); onClose(); }}
+          style={{ display:"flex", alignItems:"center", gap:7, padding:"7px 9px",
+            border:"none", borderRadius:3, textAlign:"left",
+            background: c===current?"var(--paper-3)":"transparent",
+            color: c===current?"var(--ink)":"var(--ink-2)", fontSize:13, fontFamily:"var(--cjk-serif)" }}
+          onMouseEnter={e=>e.currentTarget.style.background="var(--paper-3)"}
+          onMouseLeave={e=>e.currentTarget.style.background=c===current?"var(--paper-3)":"transparent"}>
+          <span style={{ color:"var(--ink-4)", fontSize:11 }}>{CAT_GLYPH[c]}</span>{c}
+          {c===current && <span style={{ marginLeft:"auto", color:"var(--accent)" }}>✓</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Row({ t, onChangeCat }){
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
+  const src = SOURCES[t.src];
+  const channel = window.CHANNELS?.[t.channel] || src;
+  const sub = [channel.label, t.detail].filter(Boolean).join(" · ");
+  return (
+    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} className="bills-grid"
+      style={{ display:"grid", gridTemplateColumns:"58px 1fr 96px 132px", alignItems:"center",
+        gap:16, padding:"13px 18px", borderBottom:"1px solid var(--line)",
+        background: hover?"var(--paper-2)":"transparent", transition:"background .15s" }}>
+      <span className="mono" style={{ fontSize:12, color:"var(--ink-4)" }}>{t.time || t.date.slice(11,16)}</span>
+
+      <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
+        <span style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
+          width:26, height:26, borderRadius:999, flexShrink:0,
+          border:"1px solid var(--line-2)", color:"var(--ink-3)", fontSize:11 }}>{src.glyph}</span>
+        <div style={{ minWidth:0, flex:1 }}>
+          <div className="cjk-serif" style={{ fontSize:14.5, color:"var(--ink)", overflow:"hidden",
+            textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.merchant}</div>
+          <div className="mono" title={sub} style={{ fontSize:10.5, color:"var(--ink-4)", marginTop:2,
+            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</div>
+        </div>
+      </div>
+
+      <div style={{ position:"relative" }}>
+        <button onClick={()=>setOpen(v=>!v)}
+          style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 9px",
+            borderRadius:999, border:"1px solid var(--line)",
+            background: open?"var(--paper-3)":"transparent", color:"var(--ink-2)",
+            fontSize:12.5, fontFamily:"var(--cjk-serif)", transition:"all .15s" }}
+          title="点击修改分类">
+          <span style={{ color:"var(--ink-4)", fontSize:11 }}>{CAT_GLYPH[t.cat]}</span>{t.cat}
+          <span style={{ color:"var(--ink-4)", fontSize:9, opacity: hover||open?1:0 }}>▾</span>
+        </button>
+        {open && <CatMenu current={t.cat} onPick={c=>onChangeCat(t.id,c)} onClose={()=>setOpen(false)} />}
+      </div>
+
+      <div style={{ textAlign:"right" }}>
+        <Money value={t.amount} sign dp={Number.isInteger(t.amount)?0:2}
+          color={t.amount>0?"var(--pos)":"var(--ink)"} size={1.02} />
+      </div>
+    </div>
+  );
+}
+
+function DayGroup({ day, rows, onChangeCat }){
+  const countable = cashflowTxns(rows);
+  const expense = -countable.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+  const income = countable.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"baseline", gap:12, padding:"13px 18px 9px",
+        borderBottom:"1px solid var(--line)", background:"white" }}>
+        <span className="cjk-serif" style={{ fontSize:14.5, color:"var(--ink)" }}>{day}</span>
+        <span className="mono" style={{ fontSize:11, color:"var(--ink-4)" }}>{rows.length} 笔</span>
+        <span style={{ flex:1 }}></span>
+        {income>0 && <span style={{ fontSize:12, color:"var(--ink-3)" }}>收入 <Money value={income} sign color="var(--pos)" size={0.9}/></span>}
+        {expense>0 && <span style={{ fontSize:12, color:"var(--ink-3)" }}>支出 <Money value={-expense} sign color="var(--ink)" size={0.9}/></span>}
+      </div>
+      {rows.map(t=> <Row key={t.id} t={t} onChangeCat={onChangeCat} />)}
+    </div>
+  );
+}
+
+function Bills(){
+  const months = useMemo(()=>{
+    const set = new Set(ALL_TXNS.map(t=>(t.day || t.date.slice(0,10)).slice(0,7)));
+    return Array.from(set).sort((a,b)=>b.localeCompare(a));
+  },[]);
+  const [monthIndex, setMonthIndex] = useState(0);
+  const [catEdits, setCatEdits] = useState({});
+  const [q, setQ] = useState("");
+  const [src, setSrc] = useState("all");
+  const [cat, setCat] = useState("all");
+
+  const currentMonth = months[monthIndex] || "";
+  const monthLabel = currentMonth ? `${currentMonth.slice(0,4)} 年 ${Number(currentMonth.slice(5))} 月` : "全部";
+  const canPrev = monthIndex < months.length - 1;
+  const canNext = monthIndex > 0;
+  const monthRows = useMemo(()=>ALL_TXNS
+    .filter(t=>!currentMonth || (t.day || t.date.slice(0,10)).slice(0,7)===currentMonth)
+    .map(t=>({ ...t, cat:catEdits[t.id] || t.cat }))
+    .sort((a,b)=> a.date<b.date?1:-1)
+  ,[currentMonth, catEdits]);
+
+  const changeCat = (id,c)=> setCatEdits(m=>({ ...m, [id]:c }));
+
+  const filtered = useMemo(()=>monthRows.filter(t=>{
+    if(src!=="all" && t.src!==src) return false;
+    if(cat!=="all" && t.cat!==cat) return false;
+    if(q && !(t.searchText || t.merchant || "").toLowerCase().includes(q.toLowerCase()) && !t.cat.includes(q)) return false;
+    return true;
+  }),[monthRows,q,src,cat]);
+
+  const countableFiltered = cashflowTxns(filtered);
+  const sumOut = countableFiltered.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+  const sumIn  = countableFiltered.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const days = useMemo(()=>new Set(filtered.map(t=>t.day || t.date.slice(0,10))).size,[filtered]);
+  const grouped = useMemo(()=>{
+    const m = {};
+    filtered.forEach(t=>{
+      const day = t.day || t.date.slice(0,10);
+      if(!m[day]) m[day] = [];
+      m[day].push(t);
+    });
+    return Object.entries(m).sort(([a],[b])=>b.localeCompare(a));
+  },[filtered]);
+
+  const usedCats = useMemo(()=>{
+    const set = new Set(monthRows.map(t=>t.cat));
+    return CATEGORIES.filter(c=>set.has(c));
+  },[monthRows]);
+
+  return (
+    <div className="fadeUp" style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      {/* 工具区 */}
+      <div style={{ border:"1px solid var(--line)", background:"white" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"minmax(220px, 1fr) auto auto", gap:14,
+          alignItems:"center", padding:"14px 16px", borderBottom:"1px solid var(--line)" }} className="bill-toolbar">
+          <Field value={q} onChange={setQ} placeholder="搜索商户或分类…" glyph="⌕" />
+
+          <div style={{ display:"flex", alignItems:"center", border:"1px solid var(--line-2)", borderRadius:2,
+            overflow:"hidden", background:"white" }}>
+            <button onClick={()=>{ if(canPrev){ setMonthIndex(i=>i+1); setCat("all"); } }} disabled={!canPrev}
+              style={{ width:36, height:34, border:"none", borderRight:"1px solid var(--line)", background:"transparent",
+                color: canPrev?"var(--ink-2)":"var(--ink-4)", fontSize:15, cursor:canPrev?"pointer":"not-allowed",
+                opacity:canPrev?1:0.35 }} title="上一月">‹</button>
+            <span className="cjk-serif" style={{ padding:"0 16px", fontSize:14.5, color:"var(--ink)",
+              minWidth:126, textAlign:"center", letterSpacing:"0.02em" }}>{monthLabel}</span>
+            <button onClick={()=>{ if(canNext){ setMonthIndex(i=>i-1); setCat("all"); } }} disabled={!canNext}
+              style={{ width:36, height:34, border:"none", borderLeft:"1px solid var(--line)", background:"transparent",
+                color: canNext?"var(--ink-2)":"var(--ink-4)", fontSize:15, cursor:canNext?"pointer":"not-allowed",
+                opacity:canNext?1:0.35 }} title="下一月">›</button>
+          </div>
+
+          <div style={{ display:"flex", alignItems:"baseline", gap:18, justifyContent:"flex-end", whiteSpace:"nowrap" }}>
+            <span className="mono" style={{ fontSize:11.5, color:"var(--ink-4)" }}>{filtered.length} 笔 · {days || 0} 天</span>
+            <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>支出 <Money value={sumOut} className="num"/></span>
+            <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>收入 <Money value={sumIn} sign color="var(--pos)"/></span>
+          </div>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:10, padding:"12px 16px 14px" }}>
+          <div style={{ display:"flex", gap:7, flexWrap:"wrap", alignItems:"center" }}>
+            <span className="label" style={{ width:46, fontSize:9.5, color:"var(--ink-4)", letterSpacing:"0.18em" }}>账户</span>
+            <Tag active={src==="all"} onClick={()=>setSrc("all")}>全部账户</Tag>
+            {Object.entries(SOURCES).map(([k,v])=>(
+              <Tag key={k} glyph={v.glyph} active={src===k} onClick={()=>setSrc(k)}>{v.label}</Tag>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:7, flexWrap:"wrap", alignItems:"center" }}>
+            <span className="label" style={{ width:46, fontSize:9.5, color:"var(--ink-4)", letterSpacing:"0.18em" }}>分类</span>
+            <Tag active={cat==="all"} onClick={()=>setCat("all")}>全部分类</Tag>
+            {usedCats.map(c=>(
+              <Tag key={c} glyph={CAT_GLYPH[c]} active={cat===c} onClick={()=>setCat(c)}>{c}</Tag>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 表头 + 列表 */}
+      <Card pad={0}>
+        <div className="bills-grid" style={{ display:"grid", gridTemplateColumns:"58px 1fr 96px 132px", gap:16,
+          padding:"11px 18px", borderBottom:"1.5px solid var(--ink)",
+          fontSize:11, letterSpacing:"0.14em", color:"var(--ink-3)" }}>
+          <span>时间</span><span>商户 / 来源</span><span>分类</span><span style={{textAlign:"right"}}>金额</span>
+        </div>
+        {filtered.length===0
+          ? <div style={{ padding:"56px 0", textAlign:"center", color:"var(--ink-4)",
+              fontFamily:"var(--cjk-serif)", fontSize:14 }}>没有符合条件的流水</div>
+          : grouped.map(([day, rows])=> <DayGroup key={day} day={day} rows={rows} onChangeCat={changeCat} />)
+        }
+      </Card>
+      <div className="mono" style={{ fontSize:11, color:"var(--ink-4)", textAlign:"center" }}>
+        点击任意分类标签即可手动修改 · 按实际扣款账户归属，行内保留交易通道
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Bills });

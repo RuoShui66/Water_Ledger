@@ -1,0 +1,181 @@
+// ============ 总览 Overview · B 云石居中 ============
+function MoMChip({ series }){
+  if(series.length < 2) return null;
+  const d = series[series.length-1].v - series[0].v;
+  const pct = series[0].v ? (d/series[0].v*100) : 0;
+  return (
+    <Tag tone={d>=0?"pos":"neg"} glyph={d>=0?"▲":"▼"}>
+      较区间起点 {d>=0?"+":"−"}¥{fmt(Math.abs(d))} · {Math.abs(pct).toFixed(1)}%
+    </Tag>
+  );
+}
+
+function CenterStat({ label, value, sign }){
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:9, alignItems:"center", textAlign:"center" }}>
+      <span className="label" style={{ fontSize:10.5, color:"var(--ink-3)" }}>{label}</span>
+      <Money value={value} sign={sign} size={1.45} color={sign?dirColor(value):"var(--ink)"} />
+    </div>
+  );
+}
+
+function daysAgo(date, days){
+  const d = new Date(date + "T00:00:00");
+  d.setDate(d.getDate()-days);
+  return d.toISOString().slice(0,10);
+}
+function startOfYear(date){
+  return date ? date.slice(0,4) + "-01-01" : "";
+}
+function filterSeriesByDate(net, stock, start, end){
+  const pairs = net.map((n,i)=>({ n, s:stock[i] || { ...n, v:0 } }))
+    .filter(p=>(!start || p.n.date>=start) && (!end || p.n.date<=end));
+  return {
+    net:pairs.map(p=>p.n),
+    stock:pairs.map(p=>p.s),
+  };
+}
+function monthLabel(date){
+  return date ? date.slice(2,7).replace("-", "/") : "";
+}
+function monthEndSeries(series){
+  const byMonth = new Map();
+  (series || []).forEach(point=>{
+    const key = (point.date || point.m || "").slice(0,7);
+    if(!key) return;
+    const prev = byMonth.get(key);
+    if(!prev || (point.date || "") >= (prev.date || "")) {
+      byMonth.set(key, { ...point, m:monthLabel(point.date || key), month:key });
+    }
+  });
+  return Array.from(byMonth.values()).sort((a,b)=>(a.date || "").localeCompare(b.date || ""));
+}
+function applyGranularity(series, granularity){
+  return granularity === "month" ? monthEndSeries(series) : series;
+}
+const ACCOUNT_COLORS = [
+  "oklch(0.47 0.18 262)",
+  "oklch(0.58 0.16 214)",
+  "oklch(0.43 0.17 286)",
+  "oklch(0.52 0.14 330)",
+  "oklch(0.54 0.10 32)",
+  "oklch(0.45 0.12 175)",
+];
+function accountColor(index){ return ACCOUNT_COLORS[index % ACCOUNT_COLORS.length]; }
+function filterAccountSeries(accounts, start, end){
+  return accounts.map((a,i)=>({
+    ...a,
+    color:accountColor(i),
+    series:(a.series||[]).filter(p=>(!start || p.date>=start) && (!end || p.date<=end)),
+  })).filter(a=>a.series.length);
+}
+function applyAccountGranularity(accounts, granularity){
+  return accounts.map(account=>({
+    ...account,
+    series:applyGranularity(account.series || [], granularity),
+  })).filter(account=>account.series.length);
+}
+function RangeButton({ active, children, onClick }){
+  return (
+    <button onClick={onClick} style={{ border:"1px solid var(--line-2)", background:active?"var(--accent)":"transparent",
+      color:active?"var(--paper)":"var(--ink-2)", padding:"6px 10px", fontSize:11,
+      fontFamily:"var(--label)", letterSpacing:"0.08em" }}>{children}</button>
+  );
+}
+
+function Overview({ accent }){
+  const cats = useMemo(()=>expenseByCat(TXNS),[]);
+  const latestDate = NW_SERIES[NW_SERIES.length-1]?.date || TODAY;
+  const earliestDate = NW_SERIES[0]?.date || latestDate;
+  const [rangeMode,setRangeMode] = useState("6m");
+  const [granularity,setGranularity] = useState("day");
+  const [customStart,setCustomStart] = useState("");
+  const [customEnd,setCustomEnd] = useState("");
+  const rangeConfig = {
+    "1m": { label:"近一月", start:daysAgo(latestDate, 30), end:latestDate },
+    "6m": { label:"近 6 月", start:daysAgo(latestDate, 183), end:latestDate },
+    "ytd": { label:"本年", start:startOfYear(latestDate), end:latestDate },
+    "all": { label:"全部", start:earliestDate, end:latestDate },
+    "custom": { label:"自定义", start:customStart || earliestDate, end:customEnd || latestDate },
+  }[rangeMode];
+  const filtered = filterSeriesByDate(NW_SERIES, STOCK_SERIES, rangeConfig.start, rangeConfig.end);
+  const chartNet = applyGranularity(filtered.net.length ? filtered.net : NW_SERIES.slice(-1), granularity);
+  const chartAccounts = applyAccountGranularity(
+    filterAccountSeries(ACCOUNT_SERIES, rangeConfig.start, rangeConfig.end),
+    granularity
+  );
+  const chartGrowth = chartNet[chartNet.length-1].v - chartNet[0].v;
+  const granularityLabel = granularity === "month" ? "月" : "日";
+
+  return (
+    <div className="fadeUp" style={{ display:"flex", flexDirection:"column", gap:46 }}>
+
+      {/* ===== 居中英雄区 ===== */}
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center",
+        paddingTop:8 }}>
+        <span className="label" style={{ fontSize:12, color:"var(--accent)", letterSpacing:"0.26em" }}>
+          NET WORTH · 截至 {zhDate(TODAY)}
+        </span>
+        <div style={{ margin:"22px 0 18px" }}>
+          <Money value={NET_WORTH} dp={2} size={5.2} className="didone" color="var(--hero)" />
+        </div>
+        <MoMChip series={chartNet} />
+      </div>
+
+      {/* ===== 财富增长 ===== */}
+      <Card pad={28} clean>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end",
+          flexWrap:"wrap", gap:16, marginBottom:20, paddingBottom:18, borderBottom:"1px solid var(--line)" }}>
+          <div>
+            <Eyebrow n="01">财富增长 · {rangeConfig.label} · {granularityLabel}粒度</Eyebrow>
+            <div className="cjk-serif" style={{ fontSize:15, color:"var(--ink-2)", marginTop:-4 }}>
+              净资产增长 <Money value={chartGrowth} sign size={0.95} color={dirColor(chartGrowth)} />
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end" }}>
+            {[
+              ["day","日"],["month","月"]
+            ].map(([id,label])=>(
+              <RangeButton key={id} active={granularity===id} onClick={()=>setGranularity(id)}>{label}</RangeButton>
+            ))}
+            {[
+              ["1m","近一月"],["6m","近 6 月"],["ytd","本年"],["all","全部"]
+            ].map(([id,label])=>(
+              <RangeButton key={id} active={rangeMode===id} onClick={()=>setRangeMode(id)}>{label}</RangeButton>
+            ))}
+            <RangeButton active={rangeMode==="custom"} onClick={()=>setRangeMode("custom")}>自定义</RangeButton>
+            <input type="date" value={customStart} min={earliestDate} max={latestDate}
+              onChange={e=>{ setCustomStart(e.target.value); setRangeMode("custom"); }}
+              style={{ height:30, border:"1px solid var(--line-2)", background:"transparent", color:"var(--ink-2)", padding:"0 7px", fontFamily:"var(--mono)", fontSize:11 }} />
+            <input type="date" value={customEnd} min={earliestDate} max={latestDate}
+              onChange={e=>{ setCustomEnd(e.target.value); setRangeMode("custom"); }}
+              style={{ height:30, border:"1px solid var(--line-2)", background:"transparent", color:"var(--ink-2)", padding:"0 7px", fontFamily:"var(--mono)", fontSize:11 }} />
+          </div>
+        </div>
+
+        <WealthChart net={chartNet} height={360} accent="var(--hero)" />
+        {chartAccounts.length > 0 && (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginTop:22 }} className="ov-stock3">
+            {chartAccounts.map(account=>(
+              <AccountMiniChart key={account.id || account.name} account={account} height={92} />
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* ===== 收支 + 支出去向 ===== */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:40 }} className="ov-split">
+        <div>
+          <Eyebrow n="02">本月收支</Eyebrow>
+          <FlowBars income={MONTH.income} expense={MONTH.expense} />
+        </div>
+        <div>
+          <Eyebrow n="03">支出去向</Eyebrow>
+          <CatBreakdown data={cats} total={MONTH.expense} limit={6} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Overview });

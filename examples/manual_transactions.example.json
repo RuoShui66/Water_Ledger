@@ -1,0 +1,16 @@
+[
+  {
+    "source": "manual",
+    "source_txn_id": "manual-opening-cash",
+    "occurred_at": "2026-01-01 09:00:00",
+    "direction": "收入",
+    "amount": "1000.00",
+    "currency": "CNY",
+    "account_hint": "主银行卡",
+    "category": "其他收入",
+    "counterparty": "期初余额",
+    "description": "示例手工流水",
+    "payment_method": "manual",
+    "status": "已记账"
+  }
+]

@@ -1,0 +1,200 @@
+// ============ 报告 Report ============
+function reportMonthKeys(){
+  return Array.from(new Set(ALL_TXNS.map(t=>(t.day || t.date.slice(0,10)).slice(0,7))))
+    .sort((a,b)=>b.localeCompare(a));
+}
+
+function reportMonthLabel(key){
+  return `${key.slice(0,4)} 年 ${Number(key.slice(5))} 月`;
+}
+
+function reportNetWorthForMonth(key){
+  const end = new Date(Number(key.slice(0,4)), Number(key.slice(5)), 0);
+  const endKey = ymd(end);
+  const point = [...NW_SERIES].reverse().find(p=>p.date <= endKey);
+  return point?.v ?? NET_WORTH;
+}
+
+function reportAnomalies(rows){
+  return cashflowTxns(rows)
+    .filter(t=>t.amount<0 && t.cat!=="居住")
+    .sort((a,b)=>Math.abs(b.amount)-Math.abs(a.amount))
+    .slice(0,3)
+    .map(t=>({
+      cat:t.cat,
+      date:(t.day || t.date.slice(0,10)).slice(5),
+      merchant:t.merchant,
+      amount:t.amount,
+      note:"本月金额较高，建议复核分类和必要性",
+    }));
+}
+
+function Report(){
+  const months = useMemo(()=>reportMonthKeys(),[]);
+  const [monthIndex,setMonthIndex] = useState(0);
+  const monthKeyValue = months[monthIndex] || monthKey(TODAY);
+  const rows = useMemo(()=>ALL_TXNS.filter(t=>(t.day || t.date.slice(0,10)).slice(0,7)===monthKeyValue),[monthKeyValue]);
+  const summary = useMemo(()=>summarize(rows),[rows]);
+  const cats = summary.byCat;
+  const topCat = cats[0];
+  const anomalies = useMemo(()=>reportAnomalies(rows),[rows]);
+  const saveRate = summary.income ? Math.round(summary.net/summary.income*100) : 0;
+  const subShare = summary.expense ? Math.round(SUB_TOTAL/summary.expense*100) : 0;
+  const monthNetWorth = reportNetWorthForMonth(monthKeyValue);
+  const canPrev = monthIndex < months.length - 1;
+  const canNext = monthIndex > 0;
+  const topLabel = topCat?.cat || "暂无";
+  const topValue = topCat?.v || 0;
+  const halfYearAvg = useMemo(()=>{
+    const selected = monthIndex;
+    const nextMonths = months.slice(selected+1, selected+7);
+    if(!nextMonths.length) return 0;
+    const values = nextMonths.map(k=>{
+      const monthRows = ALL_TXNS.filter(t=>(t.day || t.date.slice(0,10)).slice(0,7)===k);
+      return summarize(monthRows).net;
+    });
+    return values.reduce((s,v)=>s+v,0)/values.length;
+  },[months,monthIndex]);
+  const avgText = halfYearAvg ? (summary.net >= halfYearAvg ? "高于" : "低于") : "接近";
+
+  return (
+    <div className="fadeUp" style={{ display:"flex", flexDirection:"column", gap:34 }}>
+      <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", alignItems:"center", border:"1px solid var(--line-2)", borderRadius:2,
+          overflow:"hidden", background:"white" }}>
+          <button onClick={()=>canPrev&&setMonthIndex(i=>i+1)} disabled={!canPrev}
+            style={{ width:38, height:34, border:"none", borderRight:"1px solid var(--line)", background:"transparent",
+              color:canPrev?"var(--ink-2)":"var(--ink-4)", fontSize:15, cursor:canPrev?"pointer":"not-allowed",
+              opacity:canPrev?1:0.35 }} title="上一月">‹</button>
+          <span className="cjk-serif" style={{ padding:"0 18px", minWidth:132, textAlign:"center",
+            color:"var(--ink)", fontSize:14.5 }}>{reportMonthLabel(monthKeyValue)}</span>
+          <button onClick={()=>canNext&&setMonthIndex(i=>i-1)} disabled={!canNext}
+            style={{ width:38, height:34, border:"none", borderLeft:"1px solid var(--line)", background:"transparent",
+              color:canNext?"var(--ink-2)":"var(--ink-4)", fontSize:15, cursor:canNext?"pointer":"not-allowed",
+              opacity:canNext?1:0.35 }} title="下一月">›</button>
+        </div>
+        <span className="mono" style={{ fontSize:11.5, color:"var(--ink-4)" }}>{rows.length} 笔</span>
+      </div>
+
+      {/* 月度总结 — 叙事 */}
+      <div>
+        <Eyebrow n="01">月度总结 · {reportMonthLabel(monthKeyValue)}</Eyebrow>
+        <div style={{ display:"grid", gridTemplateColumns:"1.4fr 1fr", gap:34 }} className="rp-split">
+          <div className="cjk-serif" style={{ fontSize:19, lineHeight:1.95, color:"var(--ink)", fontWeight:400 }}>
+            这个月你的结余为 <Money value={summary.net} sign className="didone" color={dirColor(summary.net)} size={1}/>，
+            储蓄率 <span className="num" style={{ fontWeight:600 }}>{saveRate}%</span>，
+            {avgText}你近半年的平均水平。月末净资产约 <Money value={monthNetWorth} className="didone" color="var(--hero)" size={1}/>。
+            支出最集中的是
+            <span style={{ borderBottom:"2px solid var(--accent)" }}>「{topLabel}」</span>，
+            共 <span className="num">¥{fmt(topValue)}</span>。异常支出与订阅项已按本月重新标记。
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:0, borderLeft:"1.5px solid var(--ink)", paddingLeft:24 }}>
+            {[
+              { l:"本月结余", v:summary.net, sign:true },
+              { l:"储蓄率", txt:`${saveRate}%` },
+              { l:"最大支出类", txt:topLabel, sub:`¥${fmt(topValue)}` },
+              { l:"订阅月支出", txt:`¥${fmt(SUB_TOTAL)}` },
+            ].map((s,i)=>(
+              <div key={i} style={{ padding:"13px 0",
+                borderBottom: i<3?"1px solid var(--line)":"none",
+                display:"flex", justifyContent:"space-between", alignItems:"baseline" }}>
+                <span style={{ fontSize:13, color:"var(--ink-3)" }}>{s.l}</span>
+                {s.v!=null
+                  ? <Money value={s.v} sign={s.sign} color={dirColor(s.v)} />
+                  : <span className="cjk-serif" style={{ fontSize:15, color:"var(--ink)" }}>
+                      {s.txt}{s.sub && <span className="num" style={{ fontSize:11, color:"var(--ink-4)", marginLeft:7 }}>{s.sub}</span>}
+                    </span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 异常支出 */}
+      <div>
+        <Eyebrow n="02">异常支出 · 系统标记</Eyebrow>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16 }} className="rp-3">
+          {anomalies.map((a,i)=>(
+            <Card key={i} pad={20} hover style={{ borderTop:"2px solid var(--neg)" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
+                <Tag tone="neg" glyph={CAT_GLYPH[a.cat]}>{a.cat}</Tag>
+                <span className="mono" style={{ fontSize:11, color:"var(--ink-4)" }}>{a.date}</span>
+              </div>
+              <div className="cjk-serif" style={{ fontSize:15, color:"var(--ink)", marginBottom:6 }}>{a.merchant}</div>
+              <Money value={a.amount} size={1.5} className="didone" color="var(--neg)" />
+              <div style={{ fontSize:12.5, color:"var(--ink-3)", marginTop:12, lineHeight:1.6 }}>{a.note}</div>
+            </Card>
+          ))}
+          {!anomalies.length && (
+            <Card pad={20} style={{ gridColumn:"1 / -1", color:"var(--ink-4)", fontFamily:"var(--cjk-serif)" }}>
+              本月暂无可标记的支出。
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* 订阅统计 */}
+      <div>
+        <Eyebrow n="03">订阅统计</Eyebrow>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:24 }} className="rp-split2">
+          <Card pad={0}>
+            <div className="sub-grid" style={{ display:"grid", gridTemplateColumns:"1fr 70px 90px 80px", gap:14,
+              padding:"11px 18px", borderBottom:"1.5px solid var(--ink)",
+              fontSize:11, letterSpacing:"0.12em", color:"var(--ink-3)" }}>
+              <span>服务</span><span className="sub-cycle">周期</span><span style={{textAlign:"right"}}>金额</span><span className="sub-next" style={{textAlign:"right"}}>下次扣费</span>
+            </div>
+            {SUBSCRIPTIONS.map((s,i)=>(
+              <div key={i} className="sub-grid" style={{ display:"grid", gridTemplateColumns:"1fr 70px 90px 80px", gap:14,
+                alignItems:"center", padding:"13px 18px",
+                borderBottom: i<SUBSCRIPTIONS.length-1?"1px solid var(--line)":"none" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:9, minWidth:0 }}>
+                  <span style={{ color:"var(--ink-4)", fontSize:11 }}>◎</span>
+                  <span className="cjk-serif" style={{ fontSize:14, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</span>
+                  {s.flag && <Tag tone={s.flag==="涨价"?"neg":"ink"}>{s.flag}</Tag>}
+                </div>
+                <span className="mono sub-cycle" style={{ fontSize:12, color:"var(--ink-3)" }}>每{s.cycle}</span>
+                <Money value={-s.cny} className="num" />
+                <span className="mono sub-next" style={{ fontSize:12, color:"var(--ink-4)", textAlign:"right" }}>{s.next}</span>
+              </div>
+            ))}
+          </Card>
+          <Card pad={24} style={{ display:"flex", flexDirection:"column", justifyContent:"center",
+            alignItems:"center", textAlign:"center", background:"white" }}>
+            <div style={{ fontSize:12.5, letterSpacing:"0.1em", color:"var(--ink-3)" }}>每月订阅合计</div>
+            <div style={{ margin:"14px 0 6px" }}>
+              <Money value={-SUB_TOTAL} size={2.4} className="didone" color="var(--neg)" />
+            </div>
+            <div className="mono" style={{ fontSize:11.5, color:"var(--ink-4)" }}>
+              全年约 ¥{fmt(SUB_TOTAL*12)} · 占月支出 {subShare}%
+            </div>
+            <div style={{ width:"100%", height:1, background:"var(--line)", margin:"18px 0" }}></div>
+            <div className="cjk-serif" style={{ fontSize:13, color:"var(--ink-3)", lineHeight:1.7 }}>
+              共 {SUBSCRIPTIONS.length} 项订阅<br/>1 项建议复核
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* 消费建议 */}
+      <div>
+        <Eyebrow n="04">消费建议</Eyebrow>
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          {SUGGESTIONS.map((s,i)=>(
+            <div key={i} style={{ display:"flex", gap:20, padding:"18px 22px",
+              background:"white", border:"1px solid var(--line)", borderRadius:3 }}>
+              <span className="didone" style={{ fontSize:26, color:"var(--accent)", lineHeight:1, flexShrink:0 }}>
+                {String(i+1).padStart(2,"0")}
+              </span>
+              <div>
+                <Tag tone="accent">{s.tag}</Tag>
+                <div className="cjk-serif" style={{ fontSize:15.5, lineHeight:1.8, color:"var(--ink)", marginTop:10 }}>{s.text}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Report });
