@@ -117,6 +117,7 @@ def init_workspace(force: bool = False, configure_balances: bool = False, no_bal
         PRIVATE_ROOT / "imports" / "bank",
         PRIVATE_ROOT / "data",
         PRIVATE_ROOT / "outputs" / "longbridge_live_snapshots",
+        PRIVATE_ROOT / "outputs" / "brokerage_snapshots",
         PRIVATE_ROOT / "logs",
     ]
     for path in dirs:
@@ -289,6 +290,13 @@ def privacy_check_command() -> int:
     return 0
 
 
+def brokerage_snapshot_command(provider: str, dry_run: bool, no_raw: bool) -> int:
+    from water_ledger.brokerages import run_snapshot
+
+    print(json.dumps(run_snapshot(provider=provider, dry_run=dry_run, write_raw=not no_raw), ensure_ascii=False, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="water-ledger")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -313,6 +321,16 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("privacy-check", help="Scan public workspace for private finance data")
 
+    brokerage_parser = sub.add_parser("brokerage-snapshot", help="Fetch brokerage net-worth snapshots")
+    brokerage_parser.add_argument(
+        "--provider",
+        default="enabled",
+        choices=["enabled", "all", "longbridge", "futu", "tiger", "ibkr", "robinhood"],
+        help="brokerage provider to fetch; default runs enabled providers from private/config.yaml",
+    )
+    brokerage_parser.add_argument("--dry-run", action="store_true", help="fetch and print without writing SQLite")
+    brokerage_parser.add_argument("--no-raw", action="store_true", help="do not write raw brokerage API response JSON")
+
     args = parser.parse_args(argv)
     if args.command == "init":
         init_workspace(
@@ -335,6 +353,8 @@ def main(argv: list[str] | None = None) -> int:
         return status_command()
     if args.command == "privacy-check":
         return privacy_check_command()
+    if args.command == "brokerage-snapshot":
+        return brokerage_snapshot_command(args.provider, args.dry_run, args.no_raw)
     parser.error("unknown command")
     return 2
 

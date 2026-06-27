@@ -59,6 +59,7 @@ PATTERNS = {
 ALLOWLIST_TEXT = {
     "真实账单、数据库、输出和密钥默认放在 `private/`",
     "Secrets and local environment",
+    "secret_key=conf_value",
 }
 
 

@@ -190,4 +190,41 @@ brokerages:
   longbridge:
     enabled: false
     account: 美股账户
+    currency: USD
+    region: cn
     deposit_settlements: []
+  futu:
+    enabled: false
+    account: 美股账户
+    currency: USD
+    host: 127.0.0.1
+    port: 11111
+    market: US
+    trd_env: REAL
+    acc_id:
+    acc_index: 0
+    refresh_cache: false
+  tiger:
+    enabled: false
+    account: 美股账户
+    currency: USD
+    account_mode: auto
+    account_id:
+    private_key_path:
+    tiger_id:
+    secret_key:
+  ibkr:
+    enabled: false
+    account: 美股账户
+    currency: USD
+    base_url: https://localhost:5000/v1/api
+    account_id:
+  robinhood:
+    enabled: false
+    account: 美股账户
+    currency: USD
+    # Robinhood currently exposes official agent access through Trading MCP.
+    # Configure a local authenticated bridge command in private/config.yaml.
+    command: []
+    balance_paths: [net_liquidation, total_equity, total_value]
+    currency_paths: [currency]

@@ -77,4 +77,30 @@ brokerages:
   longbridge:
     enabled: false
     account: 美股账户
+    currency: USD
     deposit_settlements: []
+  futu:
+    enabled: false
+    account: 美股账户
+    currency: USD
+    host: 127.0.0.1
+    port: 11111
+    market: US
+    trd_env: REAL
+  tiger:
+    enabled: false
+    account: 美股账户
+    currency: USD
+    account_mode: auto
+  ibkr:
+    enabled: false
+    account: 美股账户
+    currency: USD
+    base_url: https://localhost:5000/v1/api
+  robinhood:
+    enabled: false
+    account: 美股账户
+    currency: USD
+    command: []
+    balance_paths: [net_liquidation, total_equity, total_value]
+    currency_paths: [currency]

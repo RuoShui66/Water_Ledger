@@ -13,7 +13,7 @@ Water Ledger is currently a local-first personal finance ledger. This preview is
 
 ### Optional Capabilities
 
-- Longbridge brokerage asset snapshots are supported as an optional capability. They are disabled by default and should be configured only in `private/config.yaml`.
+- Brokerage asset snapshots are supported as an optional capability. Longbridge, Futu/moomoo, Tiger Brokers, IBKR, and Robinhood MCP bridge providers are disabled by default and should be configured only in `private/config.yaml`.
 - Manual account balance anchors can be entered during `init` and are used to backfill opening balances when statements do not provide balance-after-transaction fields.
 
 ### Privacy Boundary

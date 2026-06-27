@@ -30,6 +30,7 @@ python -m water_ledger start
 python -m water_ledger status
 python -m water_ledger stop
 python -m water_ledger serve
+python -m water_ledger brokerage-snapshot --provider enabled
 python -m water_ledger privacy-check
 ```
 
@@ -75,6 +76,7 @@ examples/        # 可公开的假数据
 - [数据模型](docs/data_model.md)
 - [账户和期初余额](docs/account_setup.md)
 - [导入指南](docs/import_guide.md)
+- [券商净资产快照](docs/brokerage_snapshots.md)
 - [隐私边界](docs/privacy.md)
 - [常驻运行](docs/run_service.md)
 - [发行说明](RELEASE_NOTES.md)
