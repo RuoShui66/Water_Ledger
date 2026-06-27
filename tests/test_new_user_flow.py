@@ -55,6 +55,10 @@ class NewUserFlowTest(unittest.TestCase):
         self.assertEqual(stats["ledger_rows"], 6)
         self.assertEqual(stats["duplicate_rows"], 0)
         self.assertEqual(stats["refund_offset_pairs"], 1)
+        self.assertEqual(
+            {warning["account"] for warning in stats["warnings"]},
+            {"微信余额", "支付宝余额"},
+        )
 
     def test_status_reports_custom_port(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
