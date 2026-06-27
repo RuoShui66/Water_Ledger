@@ -9,8 +9,9 @@ Use this skill to edit `private/config.yaml`.
 
 ## Workflow
 
-1. Ask only for missing essentials: display name, account type, institution,
-   currency, whether it counts in net worth, and optional current balance/time.
+1. Use a native input dialog when available. Ask only for missing essentials:
+   display name, account type, institution, currency, whether it counts in net
+   worth, and optional current balance/time.
 2. Add the account under `accounts` in `private/config.yaml`.
 3. Update `account_mapping` only if the account should receive imported
    transactions or optional estimates.

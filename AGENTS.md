@@ -34,6 +34,39 @@ the database and dashboard pick them up. Do not add extra personal assumptions
 such as brokerage, loans, in-transit funds, or wealth-management accounts to the
 public example config.
 
+## Dialog-First User Input
+
+When the agent environment supports a native user-input dialog or modal, use it
+before falling back to prose questions. This applies to Codex, Claude Code, and
+similar local coding agents.
+
+Use dialogs for user decisions and private values during:
+
+- First-time initialization.
+- Adding a new account.
+- Recording or refreshing manual balances.
+- Choosing which bill exports the user has available.
+
+Do not ask the user to edit YAML when a dialog plus local file edit can handle
+the same job. Ask for the smallest useful batch of information, then update
+`private/config.yaml` yourself.
+
+For first-time initialization, collect:
+
+1. Whether to keep the default accounts: 主银行卡, 微信余额, 支付宝余额.
+2. Current balances for 微信余额 and 支付宝余额, or "skip for now".
+3. Whether the user has Alipay, WeChat, bank, brokerage, or manual bills ready.
+
+For a new account, collect:
+
+1. Account display name and account type.
+2. Institution, currency, and whether it counts in net worth.
+3. Optional current balance and balance time.
+
+After collecting balance amounts, convert yuan to cents before writing
+`manual_balance_cents`, and write `manual_balance_at` when the user provides a
+date/time. For liabilities, store balances as negative numbers.
+
 Do not answer first-run questions with a command tutorial by default. Avoid
 leading with SQLite, Python modules, directory trees, importer internals, or a
 long list of commands. Mention commands only when you are about to run them for
@@ -66,6 +99,9 @@ Use this Chinese shape as the default:
 真实数据会放在 private/，不会提交到 Git。
 ```
 
+If a native input dialog is available, show it after this short explanation
+instead of continuing with a long back-and-forth in chat.
+
 If running in an environment with shell access, inspect and initialize the
 workspace after this answer unless the user asks you to wait.
 
@@ -75,7 +111,7 @@ Use this workflow for a freshly cloned repository:
 
 1. Inspect whether `private/config.yaml` exists.
 2. If it does not exist, run `python -m water_ledger init`.
-3. Ask the user for the minimal checklist:
+3. Use a native input dialog when available to ask the user for the minimal checklist:
    - Provide account names and rough account types.
    - Provide current balances for accounts that do not have statement balances.
    - Add or attach bill exports for Alipay, WeChat, bank, brokerage, and manual
@@ -104,7 +140,7 @@ rebuild the ledger so the visible bill becomes more readable.
 When the user says something like "帮我加一张招商银行卡", "我还有一个券商账户",
 or "加一个借款账户", treat that as an account-configuration request:
 
-1. Ask only for missing essentials: account display name, account type,
+1. Use a native input dialog when available, and ask only for missing essentials: account display name, account type,
    institution, currency, whether it counts in net worth, and an optional
    current balance/time.
 2. Edit `private/config.yaml` under `accounts`.

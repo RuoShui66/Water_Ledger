@@ -27,6 +27,16 @@ Then offer to initialize/check the workspace and ask for at most those three
 inputs. Keep technical details and command blocks out of the first answer unless
 the user explicitly wants to operate manually.
 
+If the environment supports a native input dialog, use it immediately after the
+short first-run explanation. Prefer a dialog over prose questions for:
+
+- Whether to keep the default accounts.
+- WeChat and Alipay current balances, or skipping them for now.
+- Which bill exports the user has ready.
+
+After the dialog returns, edit `private/config.yaml` yourself. Do not tell the
+user to edit YAML for these first-run values.
+
 ## Workflow
 
 1. Run `python -m water_ledger init`.
@@ -41,7 +51,8 @@ the user explicitly wants to operate manually.
    - `private/outputs`
 4. Edit `private/config.yaml` for the user when they provide account details. If
    account details are missing, ask for the missing account names/types/balances
-   instead of telling the user to edit the file.
+   through a native input dialog when available, instead of telling the user to
+   edit the file.
 5. If the user adds an account in conversation, edit `private/config.yaml`, run
    `python -m water_ledger import`, and tell them to refresh the dashboard.
 6. If the workspace already exists and the user only wants to add balance anchors, run `python -m water_ledger init --configure-balances`.

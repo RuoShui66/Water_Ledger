@@ -18,9 +18,9 @@
 我还有一个券商账户，美元，计入净资产。
 ```
 
-Agent 应该把账户添加到 `private/config.yaml`，然后运行 `python -m water_ledger import`。前端看板从数据库读取账户，重新导入并刷新后会自动出现新增账户。
+如果 Codex/Claude Code 支持输入对话框，Agent 应该弹出对话框收集账户类型、币种、是否计入净资产和当前余额。Agent 会把账户添加到 `private/config.yaml`，然后运行 `python -m water_ledger import`。前端看板从数据库读取账户，重新导入并刷新后会自动出现新增账户。
 
-需要补录余额时，可以运行交互式初始化：
+需要补录余额时，Agent 应优先用输入对话框询问微信余额、支付宝余额或新增账户余额。手动操作时也可以运行交互式初始化：
 
 ```bash
 python -m water_ledger init --configure-balances
