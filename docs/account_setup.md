@@ -70,7 +70,7 @@ python -m water_ledger init --configure-balances
 - `other_asset`：其他资产或在途资金。
 - `liability`：借款、消费贷、信用卡欠款等负债。
 
-新增券商账户后，如果想回溯历史净资产，让 Agent 运行 `python -m water_ledger brokerage-history --provider <provider> --start <date> --end <date> --rebuild` 批量拉取任意时间段。只录当前余额只能得到当前快照，不能还原过去每天的市场波动。CSV 只是脚本产物或兜底导入格式。
+新增券商账户后，如果想回溯历史净资产，让 Agent 运行 `python -m water_ledger brokerage-history --provider <provider> --start <date> --end <date> --rebuild` 批量拉取指定日期范围。只录当前余额只能得到当前快照，不能还原过去每天的市场波动。CSV 只是脚本产物或兜底导入格式。
 
 ## 账本显示名
 

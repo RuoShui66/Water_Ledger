@@ -48,7 +48,7 @@ private/imports/brokerage/
 
 可参考 [examples/brokerage_asset_history.example.csv](../examples/brokerage_asset_history.example.csv)。
 
-这适合新增券商账户后回溯任意时间段的净资产。CSV 是脚本产物或兜底格式，至少包含账户名、日期和净资产金额。
+这适合新增券商账户后回溯指定日期范围的净资产。CSV 是脚本产物或兜底格式，至少包含账户名、日期和净资产金额。
 
 ## 手工流水
 
