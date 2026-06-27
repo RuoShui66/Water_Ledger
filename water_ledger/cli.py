@@ -305,6 +305,32 @@ def brokerage_history_command(provider: str, start: str, end: str, rebuild: bool
     return 0
 
 
+def brokerage_schedule_install_command(time_value: str, provider: str, write_only: bool) -> int:
+    from water_ledger.scheduler import install_daily_brokerage_schedule
+
+    print(json.dumps(
+        install_daily_brokerage_schedule(time_value=time_value, provider=provider, load=not write_only),
+        ensure_ascii=False,
+        indent=2,
+    ))
+    return 0
+
+
+def brokerage_schedule_uninstall_command() -> int:
+    from water_ledger.scheduler import uninstall_daily_brokerage_schedule
+
+    print(json.dumps(uninstall_daily_brokerage_schedule(), ensure_ascii=False, indent=2))
+    return 0
+
+
+def brokerage_schedule_status_command() -> int:
+    from water_ledger.scheduler import daily_brokerage_schedule_status
+
+    result = daily_brokerage_schedule_status()
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["status"] == "installed" else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="water-ledger")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -345,6 +371,20 @@ def main(argv: list[str] | None = None) -> int:
     history_parser.add_argument("--end", required=True, help="end date, YYYY-MM-DD")
     history_parser.add_argument("--rebuild", action="store_true", help="rebuild SQLite after writing the history import CSV")
 
+    schedule_parser = sub.add_parser("brokerage-schedule", help="Manage local daily brokerage snapshot scheduling")
+    schedule_sub = schedule_parser.add_subparsers(dest="schedule_command", required=True)
+    schedule_install = schedule_sub.add_parser("install", help="Install a local daily brokerage snapshot schedule")
+    schedule_install.add_argument("--time", default="04:01", help="daily local time in HH:MM, default 04:01")
+    schedule_install.add_argument(
+        "--provider",
+        default="enabled",
+        choices=["enabled", "all", "longbridge", "futu", "tiger", "ibkr", "robinhood"],
+        help="brokerage provider to fetch; default runs enabled providers from private/config.yaml",
+    )
+    schedule_install.add_argument("--write-only", action="store_true", help="write the plist without loading it into launchd")
+    schedule_sub.add_parser("uninstall", help="Remove the daily brokerage snapshot LaunchAgent")
+    schedule_sub.add_parser("status", help="Show daily brokerage snapshot schedule status")
+
     args = parser.parse_args(argv)
     if args.command == "init":
         init_workspace(
@@ -371,6 +411,13 @@ def main(argv: list[str] | None = None) -> int:
         return brokerage_snapshot_command(args.provider, args.dry_run, args.no_raw)
     if args.command == "brokerage-history":
         return brokerage_history_command(args.provider, args.start, args.end, args.rebuild)
+    if args.command == "brokerage-schedule":
+        if args.schedule_command == "install":
+            return brokerage_schedule_install_command(args.time, args.provider, args.write_only)
+        if args.schedule_command == "uninstall":
+            return brokerage_schedule_uninstall_command()
+        if args.schedule_command == "status":
+            return brokerage_schedule_status_command()
     parser.error("unknown command")
     return 2
 

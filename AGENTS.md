@@ -98,6 +98,31 @@ under `private/imports/brokerage/` only as a fallback or as the script output.
 Explain that current balance alone cannot reconstruct past daily market moves;
 historical snapshots are needed for an accurate historical curve.
 
+When initializing or adding a brokerage account, proactively set up ongoing
+daily net-worth snapshots after the account/provider configuration is in place,
+unless the user explicitly says not to. Ask for a preferred daily time only if
+the user has not already given one; otherwise use 04:01 local time. If the
+brokerage credentials or provider setup are not ready, tell the user what is
+missing and leave the schedule step pending rather than silently skipping it.
+
+Use the current agent's native recurring-task feature by default when it is
+available:
+
+- In Codex app, create or update a Codex automation.
+- In Claude Code, create or update a Claude routine/cron task.
+
+The recurring task should run the same project-level snapshot command from this
+repository: `.venv/bin/python -m water_ledger brokerage-snapshot --provider
+enabled` when a virtualenv exists, otherwise `python -m water_ledger
+brokerage-snapshot --provider enabled`.
+
+If the current environment has no agent-native recurring-task support, or the
+user explicitly wants a system-local schedule, install the project's local
+schedule with `python -m water_ledger brokerage-schedule install --time HH:MM`.
+On macOS this uses LaunchAgent; on Windows it uses Task Scheduler. Use
+`brokerage-schedule status` or `brokerage-schedule uninstall` to inspect or
+remove local schedules.
+
 After collecting balance amounts, convert yuan to cents before writing
 `manual_balance_cents`, and write `manual_balance_at` when the user provides a
 date/time. For liabilities, store balances as negative numbers.
@@ -205,6 +230,15 @@ If the user already has `private/config.yaml`, prefer `python -m water_ledger
 init --configure-balances` only when they need to add or refresh manual balance
 anchors.
 
+For brokerage accounts, do not stop after writing the account into
+`private/config.yaml`. Continue with this sequence:
+
+1. Configure or confirm the brokerage provider under `brokerages`.
+2. Import historical net-worth snapshots when available.
+3. Rebuild the ledger.
+4. Set up daily snapshots through agent-native recurring tasks or `brokerage-schedule`.
+5. Tell the user how to verify the next snapshot/log without exposing secrets.
+
 ## Privacy Rules
 
 - Keep real personal finance files in `private/` unless the user explicitly asks
@@ -231,6 +265,9 @@ python -m water_ledger privacy-check
   - `python -m water_ledger status`
   - `python -m water_ledger stop`
   - `python -m water_ledger brokerage-snapshot --provider enabled`
+  - `python -m water_ledger brokerage-schedule install --time 04:01`
+  - `python -m water_ledger brokerage-schedule status`
+  - `python -m water_ledger brokerage-schedule uninstall`
   - `python -m water_ledger privacy-check`
 - Preserve existing user changes. Do not reset, delete, or rewrite private data.
 - Do not delete original statement exports. Imports rebuild
