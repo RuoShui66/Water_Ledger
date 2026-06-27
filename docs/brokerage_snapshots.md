@@ -186,6 +186,23 @@ brokerages:
     account: 美股账户
     currency: USD
     region: cn
+    history_command:
+      - python
+      - scripts/export_longbridge_statement_history.py
+      - --account
+      - "{account}"
+      - --currency
+      - "{currency}"
+      - --start
+      - "{start}"
+      - --end
+      - "{end}"
+```
+
+历史净资产可以通过日结单批量导出：
+
+```bash
+python -m water_ledger brokerage-history --provider longbridge --start 2026-05-25 --end 2026-06-27 --rebuild
 ```
 
 兼容旧入口：
