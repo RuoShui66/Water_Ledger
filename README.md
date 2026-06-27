@@ -6,11 +6,31 @@
 
 ## 快速开始
 
+如果你是第一次 clone 这个项目，最简单的心智模型是：
+
+- 你只需要提供账户信息、当前余额和导出的账单文件。
+- Agent 负责初始化、改配置、导入账单、启动看板和排查报错。
+- 真实数据只放在 `private/`，不要放到公开目录。
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 python -m water_ledger init
+```
+
+初始化后，把账单放到对应目录：
+
+```text
+private/imports/alipay/   支付宝 CSV
+private/imports/wechat/   微信支付 Excel
+private/imports/bank/     银行 PDF
+private/data/manual_transactions.json  手工流水
+```
+
+然后运行：
+
+```bash
 python -m water_ledger import
 python -m water_ledger start --port 8787
 ```
@@ -57,6 +77,23 @@ private/
 ```bash
 python -m water_ledger init --configure-balances
 ```
+
+## 让 AI Agent 代劳
+
+这个项目适合让 Codex、Claude Code 这类本地 Agent 辅助使用。仓库级约束放在：
+
+- [AGENTS.md](AGENTS.md)：通用 Agent 行为契约。
+- [CLAUDE.md](CLAUDE.md)：Claude 入口，指向同一套规则。
+
+建议对 Agent 说：
+
+```text
+我想用这个项目给自己记账。请按 AGENTS.md 初始化工作区；
+你来修改 private/config.yaml、导入账单并启动看板。
+需要我提供账户、余额或账单文件时再问我。
+```
+
+Agent 应该只把用户必须决策的事项暴露出来：账户名称、账户类型、缺少账单余额的当前余额、账单导出文件、可选券商凭证。其余步骤由 Agent 在本地完成。
 
 ## 代码结构
 
