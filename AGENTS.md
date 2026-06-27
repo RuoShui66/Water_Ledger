@@ -4,6 +4,33 @@ This repository is a local-first personal finance ledger. Treat real bills,
 account names, balances, databases, logs, brokerage credentials, and generated
 reports as private user data.
 
+## Repository Skills
+
+This repository includes task-specific skills under `skills/water-ledger-*`.
+When a user request matches one of those skills, the agent must open and read
+the relevant `SKILL.md` before taking task actions, then follow it together
+with this guide.
+
+Use the Water Ledger skills for these tasks:
+
+- First-time setup or "what is this/how do I start": `water-ledger-init`.
+- Importing or rebuilding bills: `water-ledger-import`.
+- Adding accounts, changing account mappings, or setting balances:
+  `water-ledger-add-account`.
+- Asset snapshots, brokerage configuration, liabilities, or net-worth curves:
+  `water-ledger-assets`.
+- Classification, transfer, refund, or cashflow rule changes:
+  `water-ledger-rules`.
+- Any commit, publish, release, or public handoff: `water-ledger-privacy-check`.
+
+If more than one skill applies, use the smallest relevant set in the natural
+order of the workflow. For example, adding a wallet balance and rebuilding the
+dashboard should use `water-ledger-add-account` before `water-ledger-import`;
+publishing afterward should also use `water-ledger-privacy-check`.
+
+If a skill file is missing or unreadable, say so briefly and continue with the
+best fallback while still following the privacy rules in this guide.
+
 ## Product Stance
 
 When a new user asks how to use this project for their own bookkeeping, do not
