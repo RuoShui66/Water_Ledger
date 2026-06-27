@@ -81,6 +81,14 @@ def read_wechat(path: Path) -> list[RawTxn]:
         raw_category = norm_text(row.get("交易类型"))
         counterparty = norm_text(row.get("交易对方"))
         description = norm_text(row.get("商品"))
+        remarks = [
+            norm_text(row.get(key))
+            for key in ("备注", "交易备注", "转账说明", "付款备注", "收款方备注")
+            if norm_text(row.get(key))
+        ]
+        for remark in remarks:
+            if remark and remark not in description:
+                description = f"{description} · {remark}" if description else remark
         source_txn_id = norm_text(row.get("交易单号"))
         occurred_at = parse_dt(row["交易时间"])
         category = classify("wechat", raw_category, counterparty, description, direction)

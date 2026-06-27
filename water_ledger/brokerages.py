@@ -143,7 +143,13 @@ def extract_currency(data: Any, config: dict[str, Any], default: str = "USD") ->
 
 
 def provider_account_name(provider: str, config: dict[str, Any]) -> str:
-    return str(config.get("account") or mapping_account("brokerage_account", "美股账户")).strip()
+    account = str(config.get("account") or mapping_account("brokerage_account", "")).strip()
+    if not account:
+        raise SystemExit(
+            f"Configure brokerages.{provider}.account in private/config.yaml, "
+            "and add the matching brokerage account under accounts first."
+        )
+    return account
 
 
 def fetch_longbridge(config: dict[str, Any], snapshot_at: str) -> BrokerageSnapshot:

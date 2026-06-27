@@ -1,6 +1,26 @@
 # 账户和期初余额
 
-新增账户时，可以运行交互式初始化补录余额：
+开源初始配置只包含最常见的三个账户：
+
+- 主银行卡
+- 微信余额
+- 支付宝余额
+
+其他账户都是可配置的。你可以在会话里告诉 Agent：
+
+```text
+帮我加一张招商银行卡，计入净资产，人民币账户。
+```
+
+或者：
+
+```text
+我还有一个券商账户，美元，计入净资产。
+```
+
+Agent 应该把账户添加到 `private/config.yaml`，然后运行 `python -m water_ledger import`。前端看板从数据库读取账户，重新导入并刷新后会自动出现新增账户。
+
+需要补录余额时，可以运行交互式初始化：
 
 ```bash
 python -m water_ledger init --configure-balances
@@ -39,6 +59,16 @@ python -m water_ledger init --configure-balances
 - 负债账户的余额应为负数；初始化交互中输入正数欠款时会自动保存为负数。
 - 如果银行 PDF 或券商 API 已经提供了余额快照，系统会优先使用这些权威快照。
 - 交易必须能映射到该账户，倒推才有意义；必要时更新 `account_mapping`。
+- 如果要启用支付宝理财估算，可以新增一个 `investment` 账户，并在 `account_mapping.alipay_wealth_account` 指向它。
+
+常用 `account_type`：
+
+- `bank_card`：银行卡。
+- `wallet`：微信、支付宝、现金等钱包。
+- `investment`：理财、基金等投资资产。
+- `brokerage`：券商账户。
+- `other_asset`：其他资产或在途资金。
+- `liability`：借款、消费贷、信用卡欠款等负债。
 
 ## 账本显示名
 

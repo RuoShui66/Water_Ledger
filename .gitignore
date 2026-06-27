@@ -12,6 +12,7 @@ outputs/longbridge_live_snapshots/*
 !outputs/longbridge_live_snapshots/.gitkeep
 
 # Secrets and local environment
+.venv/
 .env
 .env.*
 *.key

@@ -21,6 +21,19 @@ directories, edit local config from the user's answers, place supplied files in
 the correct import folders, run imports, start the local dashboard, and explain
 only the next human action.
 
+Open-source defaults must stay minimal. A fresh `private/config.yaml` should
+start with only:
+
+- 主银行卡
+- 微信余额
+- 支付宝余额
+
+If the user mentions additional accounts during the conversation, add them to
+`private/config.yaml` for the user, then run `python -m water_ledger import` so
+the database and dashboard pick them up. Do not add extra personal assumptions
+such as brokerage, loans, in-transit funds, or wealth-management accounts to the
+public example config.
+
 Do not answer first-run questions with a command tutorial by default. Avoid
 leading with SQLite, Python modules, directory trees, importer internals, or a
 long list of commands. Mention commands only when you are about to run them for
@@ -79,6 +92,37 @@ Use this workflow for a freshly cloned repository:
    release, or public handoff.
 8. Start the dashboard with `python -m water_ledger start --port 8787` and give
    the user the local URL.
+
+For bank-card payments made through WeChat or Alipay, prefer the channel bill as
+the visible transaction because it usually has the merchant, payee, product, or
+remark. Keep the bank transaction as the duplicate mirror for balance and
+reconciliation. If a user imports bank bills first and channel bills later,
+rebuild the ledger so the visible bill becomes more readable.
+
+## Adding Accounts In Conversation
+
+When the user says something like "帮我加一张招商银行卡", "我还有一个券商账户",
+or "加一个借款账户", treat that as an account-configuration request:
+
+1. Ask only for missing essentials: account display name, account type,
+   institution, currency, whether it counts in net worth, and an optional
+   current balance/time.
+2. Edit `private/config.yaml` under `accounts`.
+3. Update `account_mapping` only when this account should receive imported
+   transactions or optional estimates, such as a bank account, brokerage
+   account, in-transit account, borrowing account, or Alipay wallet account.
+4. Run `python -m water_ledger import`.
+5. Tell the user to refresh the dashboard. The frontend reads configured
+   accounts from the database, so the new account should appear after import.
+
+Recommended `account_type` values:
+
+- `bank_card`
+- `wallet`
+- `investment`
+- `brokerage`
+- `other_asset`
+- `liability`
 
 If the user already has `private/config.yaml`, prefer `python -m water_ledger
 init --configure-balances` only when they need to add or refresh manual balance

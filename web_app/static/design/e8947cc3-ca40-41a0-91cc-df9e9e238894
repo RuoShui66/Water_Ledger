@@ -1,23 +1,49 @@
 // ============ 资产 Assets ============
 function buildAssetGroups(){
-  const groups = [
-    { group:"银行卡", icon:"●", color:"oklch(0.47 0.18 262)", items:[] },
-    { group:"互联网钱包", icon:"◆", color:"oklch(0.58 0.16 214)", items:[] },
-    { group:"美股账户", icon:"▲", color:"oklch(0.43 0.17 286)", usd:true, items:[] },
-    { group:"负债", icon:"▽", debt:true, items:[] },
+  const styles = {
+    "银行卡": { icon:"●", color:"oklch(0.47 0.18 262)" },
+    "互联网钱包": { icon:"◆", color:"oklch(0.58 0.16 214)" },
+    "投资理财": { icon:"◆", color:"oklch(0.54 0.15 145)" },
+    "券商账户": { icon:"▲", color:"oklch(0.43 0.17 286)", usd:true },
+    "其他资产": { icon:"●", color:"oklch(0.52 0.13 185)" },
+    "负债": { icon:"▽", color:"var(--neg)", debt:true },
+  };
+  const fallbackColors = [
+    "oklch(0.47 0.18 262)",
+    "oklch(0.58 0.16 214)",
+    "oklch(0.54 0.15 145)",
+    "oklch(0.43 0.17 286)",
+    "oklch(0.52 0.13 185)",
   ];
-  const byGroup = Object.fromEntries(groups.map(g=>[g.group,g]));
+  const groups = [];
+  const byGroup = {};
   ASSET_TIMELINE.accounts.forEach(a=>{
+    const name = a.group || "其他资产";
+    if(!byGroup[name]){
+      const style = styles[name] || {
+        icon: a.icon || "●",
+        color: fallbackColors[groups.length % fallbackColors.length],
+      };
+      byGroup[name] = {
+        group:name,
+        icon:a.icon || style.icon,
+        color:style.color,
+        usd:Boolean(a.usd || style.usd),
+        debt:Boolean(a.debt || style.debt),
+        items:[],
+      };
+      groups.push(byGroup[name]);
+    }
     const cny = Number(a.latest ?? a.manualBalance ?? 0);
-    byGroup[a.group].items.push({
+    byGroup[name].items.push({
       id:a.itemId,
       accountId:a.id,
       name:a.name,
       sub:a.sub,
       cny,
       usd:a.usd ? cny / USD_RATE : undefined,
-      group:a.group,
-      color:byGroup[a.group].color,
+      group:name,
+      color:byGroup[name].color,
     });
   });
   return groups;

@@ -56,4 +56,10 @@ def dedupe(conn: sqlite3.Connection) -> None:
             candidates.sort(key=lambda item: item[0])
             bank = candidates[0][1]
             used_bank.add(bank["id"])
-            mark_duplicate(conn, bank["id"], row["id"], 0.98 if candidates[0][0] <= 600 else 0.86, f"中行快捷支付与{row['source']}订单同金额且时间接近")
+            mark_duplicate(
+                conn,
+                bank["id"],
+                row["id"],
+                0.98 if candidates[0][0] <= 600 else 0.86,
+                f"银行快捷支付与{row['source']}订单同金额且时间接近；展示采用渠道账单商户和备注，银行流水保留用于余额",
+            )

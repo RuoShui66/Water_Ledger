@@ -14,7 +14,7 @@ def import_longbridge_asset_history(conn: sqlite3.Connection, account_ids: dict[
     path = PRIVATE_ROOT / "outputs" / "longbridge_us_asset_daily_cny.csv"
     account_name = config_section("brokerages").get("longbridge", {}).get(
         "account",
-        mapping_account("brokerage_account", "美股账户"),
+        mapping_account("brokerage_account", ""),
     )
     if not path.exists() or account_name not in account_ids:
         return
@@ -116,8 +116,8 @@ def own_untracked_transfer_event(row: sqlite3.Row) -> tuple[str, int]:
     text = f"{row['counterparty'] or ''} {row['description'] or ''}"
     signed = int(row["signed_cents"] or 0)
     rules = private_rules()
-    liability_inflow_keyword = norm_text(rules.get("liability_inflow_keyword")) or "消费贷借入"
-    if account_type == "liability" and liability_inflow_keyword in text:
+    liability_inflow_keyword = norm_text(rules.get("liability_inflow_keyword"))
+    if account_type == "liability" and liability_inflow_keyword and liability_inflow_keyword in text:
         return "domestic", -signed
     if row["category"] != "内部转账/理财" or row["source"] != "boc":
         return "", 0
@@ -132,7 +132,7 @@ def own_untracked_transfer_event(row: sqlite3.Row) -> tuple[str, int]:
     return "", 0
 
 def rebuild_own_untracked_asset_estimates(conn: sqlite3.Connection, account_ids: dict[str, int]) -> None:
-    account_id = account_ids.get(mapping_account("in_transit_account", "券商入金在途"))
+    account_id = account_ids.get(mapping_account("in_transit_account", ""))
     if not account_id:
         return
     conn.execute(
@@ -202,7 +202,7 @@ def rebuild_own_untracked_asset_estimates(conn: sqlite3.Connection, account_ids:
          WHERE a.name = ?
            AND s.source = 'longbridge_csv'
         """,
-        (mapping_account("brokerage_account", "美股账户"),),
+        (mapping_account("brokerage_account", ""),),
     ).fetchone()["snapshot_at"]
     if latest_brokerage_snapshot and domestic_running + brokerage_running > 0:
         conn.execute(
@@ -215,7 +215,7 @@ def rebuild_own_untracked_asset_estimates(conn: sqlite3.Connection, account_ids:
         )
 
 def rebuild_borrowing_account_estimates(conn: sqlite3.Connection, account_ids: dict[str, int]) -> None:
-    account_id = account_ids.get(mapping_account("borrowing_account", "借款账户"))
+    account_id = account_ids.get(mapping_account("borrowing_account", ""))
     if not account_id:
         return
     keyword = norm_text(private_rules().get("borrowing_keyword")) or os.environ.get("WATER_LEDGER_BORROWING_KEYWORD", "").strip()
@@ -354,7 +354,10 @@ def alipay_wealth_delta_cents(row: sqlite3.Row) -> int:
     return 0
 
 def rebuild_alipay_wealth_estimates(conn: sqlite3.Connection) -> None:
-    account = conn.execute("SELECT id FROM accounts WHERE name = '支付宝理财'").fetchone()
+    wealth_account = mapping_account("alipay_wealth_account", "")
+    if not wealth_account:
+        return
+    account = conn.execute("SELECT id FROM accounts WHERE name = ?", (wealth_account,)).fetchone()
     alipay_wallet = mapping_account("alipay_wallet_account", "支付宝余额")
     alipay = conn.execute("SELECT id FROM accounts WHERE name = ?", (alipay_wallet,)).fetchone()
     if not account or not alipay:

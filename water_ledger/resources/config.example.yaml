@@ -36,9 +36,6 @@ account_mapping:
     alipay: 支付宝余额
   bank_account: 主银行卡
   bank_payment_keywords: [银行, 储蓄卡, 信用卡]
-  brokerage_account: 美股账户
-  in_transit_account: 券商入金在途
-  borrowing_account: 借款账户
   alipay_wallet_account: 支付宝余额
 
 categories:
@@ -67,7 +64,7 @@ classification:
     - {category: 数码订阅, keywords: [Apple, 阿里云, 腾讯云, 订阅, 云服务, OpenAI]}
 
 private_rules:
-  liability_inflow_keyword: 消费贷借入
+  liability_inflow_keyword:
   borrowing_keyword:
   borrowing_start_at: "2025-10-01 00:00:00"
   brokerage_transfer_keywords: [购汇, 互联互通]
@@ -76,12 +73,12 @@ private_rules:
 brokerages:
   longbridge:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     deposit_settlements: []
   futu:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     host: 127.0.0.1
     port: 11111
@@ -89,17 +86,17 @@ brokerages:
     trd_env: REAL
   tiger:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     account_mode: auto
   ibkr:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     base_url: https://localhost:5000/v1/api
   robinhood:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     command: []
     balance_paths: [net_liquidation, total_equity, total_value]

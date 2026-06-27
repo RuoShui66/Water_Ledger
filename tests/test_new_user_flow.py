@@ -70,6 +70,21 @@ class NewUserFlowTest(unittest.TestCase):
             finally:
                 self.run_ledger(private_dir, "stop", check=False)
 
+    @unittest.skipUnless(importlib.util.find_spec("yaml"), "PyYAML is not installed")
+    def test_init_starts_with_minimal_default_accounts(self) -> None:
+        import yaml
+
+        with tempfile.TemporaryDirectory() as tmp:
+            private_dir = Path(tmp) / "private"
+            self.run_ledger(private_dir, "init", "--no-balance-prompts")
+
+            config = yaml.safe_load((private_dir / "config.yaml").read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            [account["name"] for account in config["accounts"]],
+            ["主银行卡", "微信余额", "支付宝余额"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,6 +27,26 @@ FX_CACHE_SECONDS = 300
 _FX_CACHE: dict[str, float] = {"rate": USD_TO_CNY_FALLBACK_RATE, "ts": 0}
 LOCAL_TZ = ZoneInfo("Asia/Shanghai")
 
+ACCOUNT_GROUPS = {
+    "bank_card": {"group": "银行卡", "icon": "●"},
+    "wallet": {"group": "互联网钱包", "icon": "◆"},
+    "brokerage": {"group": "券商账户", "icon": "▲", "usd": True},
+    "investment": {"group": "投资理财", "icon": "◆"},
+    "other_asset": {"group": "其他资产", "icon": "●"},
+    "liability": {"group": "负债", "icon": "▽", "debt": True},
+}
+
+
+def account_group_meta(account: dict, balance: float | None = None) -> dict:
+    account_type = str(account.get("account_type") or "").strip()
+    meta = dict(ACCOUNT_GROUPS.get(account_type) or ACCOUNT_GROUPS["other_asset"])
+    if balance is not None and balance < 0:
+        meta = dict(ACCOUNT_GROUPS["liability"])
+    currency = str(account.get("currency") or "CNY").upper()
+    if currency == "USD":
+        meta["usd"] = True
+    return meta
+
 
 def money_expr(column: str) -> str:
     return f"round({column} / 100.0, 2)"
@@ -634,15 +654,7 @@ def asset_design_payload(accounts: list[dict]) -> dict:
     account_meta = []
     account_name_by_id = {account["id"]: account["name"] for account in account_rows}
     for account in account_rows:
-        name_type = f"{account['name']} {account.get('account_type') or ''}"
-        if account.get("account_type") == "liability" or "负债" in name_type:
-            group, icon, debt, usd = "负债", "▽", True, False
-        elif "美股" in name_type or "股票" in name_type:
-            group, icon, debt, usd = "美股账户", "▲", False, True
-        elif "微信" in name_type or "支付宝" in name_type:
-            group, icon, debt, usd = "互联网钱包", "◆", False, False
-        else:
-            group, icon, debt, usd = "银行卡", "●", False, False
+        meta = account_group_meta(account)
         latest = latest_account.get(account["id"], {})
         account_meta.append(
             {
@@ -650,10 +662,10 @@ def asset_design_payload(accounts: list[dict]) -> dict:
                 "itemId": f"acct-{account['id']}",
                 "name": account["name"],
                 "sub": account.get("institution") or account.get("account_type") or "",
-                "group": group,
-                "icon": icon,
-                "debt": debt,
-                "usd": usd,
+                "group": meta["group"],
+                "icon": meta["icon"],
+                "debt": bool(meta.get("debt")),
+                "usd": bool(meta.get("usd")),
                 "currency": account["currency"],
                 "latest": round(latest.get("balance") or account.get("manual_balance") or 0, 2),
                 "manualBalance": round(account.get("manual_balance") or 0, 2),
@@ -714,7 +726,7 @@ def asset_design_payload(accounts: list[dict]) -> dict:
             continue
         synthetic_snaps = [
             snap for snap in snaps
-            if snap.get("source") in synthetic_sources or account_name in {"借款账户", "美股入金在途"}
+            if snap.get("source") in synthetic_sources
         ]
         previous = 0.0
         for snap in synthetic_snaps:
@@ -760,34 +772,36 @@ def api_design_data() -> dict:
     assets_payload = api_assets()
     accounts = assets_payload["accounts"]
     usd_to_cny_rate = current_usd_to_cny_rate()
-    bank_items = []
-    wallet_items = []
-    stock_items = []
-    debt_items = []
+    asset_group_map: dict[str, dict] = {}
     for account in accounts:
+        balance = round(account.get("balance") or 0, 2)
+        meta = account_group_meta(account, balance)
+        group_name = meta["group"]
+        group = asset_group_map.setdefault(
+            group_name,
+            {
+                "group": group_name,
+                "icon": meta["icon"],
+                "usd": bool(meta.get("usd")),
+                "debt": bool(meta.get("debt")),
+                "items": [],
+            },
+        )
         item = {
             "id": f"acct-{account['id']}",
             "name": account["name"],
             "sub": account.get("institution") or account.get("account_type") or "",
-            "cny": round(account.get("balance") or 0, 2),
+            "cny": balance,
         }
-        name_type = f"{account['name']} {account.get('account_type') or ''}"
-        if "负债" in name_type or item["cny"] < 0:
-            debt_items.append(item)
-        elif "美股" in name_type or "股票" in name_type:
+        if meta.get("usd"):
             item["usd"] = round(account.get("native_balance") or item["cny"] / usd_to_cny_rate, 2)
-            stock_items.append(item)
-        elif "微信" in name_type or "支付宝" in name_type:
-            wallet_items.append(item)
-        else:
-            bank_items.append(item)
+        group["items"].append(item)
 
-    asset_groups = [
-        {"group": "银行卡", "icon": "●", "items": bank_items},
-        {"group": "互联网钱包", "icon": "◆", "items": wallet_items},
-        {"group": "美股账户", "icon": "▲", "usd": True, "items": stock_items},
-        {"group": "负债", "icon": "▽", "debt": True, "items": debt_items},
-    ]
+    group_order = ["银行卡", "互联网钱包", "投资理财", "券商账户", "其他资产", "负债"]
+    asset_groups = sorted(
+        asset_group_map.values(),
+        key=lambda group: (group_order.index(group["group"]) if group["group"] in group_order else len(group_order), group["group"]),
+    )
 
     latest_net = sum(
         account.get("balance") or 0

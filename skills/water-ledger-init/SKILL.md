@@ -7,6 +7,10 @@ description: Initialize a Water Ledger local workspace by creating private direc
 
 Use this skill to initialize a local Water Ledger workspace.
 
+Open-source initialization starts with only three accounts: 主银行卡, 微信余额,
+支付宝余额. Other accounts should be added later in conversation when the user
+mentions them.
+
 ## First-Run Answer Style
 
 If the user asks what this project is or how to use it, do not start with a
@@ -38,6 +42,8 @@ the user explicitly wants to operate manually.
 4. Edit `private/config.yaml` for the user when they provide account details. If
    account details are missing, ask for the missing account names/types/balances
    instead of telling the user to edit the file.
-5. If the workspace already exists and the user only wants to add balance anchors, run `python -m water_ledger init --configure-balances`.
+5. If the user adds an account in conversation, edit `private/config.yaml`, run
+   `python -m water_ledger import`, and tell them to refresh the dashboard.
+6. If the workspace already exists and the user only wants to add balance anchors, run `python -m water_ledger init --configure-balances`.
 
 Never put real account names, bills, PDFs, SQLite databases, or secrets outside `private/`.

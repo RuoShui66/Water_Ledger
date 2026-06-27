@@ -36,36 +36,6 @@ accounts:
     manual_balance_cents:
     manual_balance_at:
     note: 用户可手动录入余额
-  - name: 支付宝理财
-    institution: 支付宝
-    account_type: investment
-    currency: CNY
-    include_in_net_worth: true
-    note: 由支付宝余额宝/蚂蚁财富账单估算
-  - name: 美股账户
-    institution: Longbridge
-    account_type: brokerage
-    currency: USD
-    include_in_net_worth: true
-    note: 由券商资产快照自动更新
-  - name: 券商入金在途
-    institution: 手工估算
-    account_type: other_asset
-    currency: CNY
-    include_in_net_worth: true
-    note: 转入券商前后的在途资金估算
-  - name: 消费贷
-    institution: 手工估算
-    account_type: liability
-    currency: CNY
-    include_in_net_worth: true
-    note: 用户手动录入负债
-  - name: 借款账户
-    institution: 手工估算
-    account_type: liability
-    currency: CNY
-    include_in_net_worth: true
-    note: 人情往来借款估算
 
 account_mapping:
   source_accounts:
@@ -77,9 +47,6 @@ account_mapping:
     - 银行
     - 储蓄卡
     - 信用卡
-  brokerage_account: 美股账户
-  in_transit_account: 券商入金在途
-  borrowing_account: 借款账户
   alipay_wallet_account: 支付宝余额
 
 categories:
@@ -175,7 +142,7 @@ classification:
       keywords: [电影, 游戏, 音乐, 旅游, 酒店, 景区]
 
 private_rules:
-  liability_inflow_keyword: 消费贷借入
+  liability_inflow_keyword:
   borrowing_keyword:
   borrowing_start_at: "2025-10-01 00:00:00"
   brokerage_transfer_keywords:
@@ -189,13 +156,13 @@ private_rules:
 brokerages:
   longbridge:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     region: cn
     deposit_settlements: []
   futu:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     host: 127.0.0.1
     port: 11111
@@ -206,7 +173,7 @@ brokerages:
     refresh_cache: false
   tiger:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     account_mode: auto
     account_id:
@@ -215,13 +182,13 @@ brokerages:
     secret_key:
   ibkr:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     base_url: https://localhost:5000/v1/api
     account_id:
   robinhood:
     enabled: false
-    account: 美股账户
+    account:
     currency: USD
     # Robinhood currently exposes official agent access through Trading MCP.
     # Configure a local authenticated bridge command in private/config.yaml.
