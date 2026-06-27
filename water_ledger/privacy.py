@@ -9,9 +9,18 @@ from water_ledger.paths import ROOT
 
 DEFAULT_EXCLUDES = {
     ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
     "__pycache__",
+    "data",
     "examples",
+    "node_modules",
+    "outputs",
     "private",
+    "venv",
     "web_app/static/design",
 }
 

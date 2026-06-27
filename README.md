@@ -7,7 +7,9 @@
 ## 快速开始
 
 ```bash
-pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 python -m water_ledger init
 python -m water_ledger import
 python -m water_ledger start --port 8787
@@ -81,4 +83,32 @@ examples/        # 可公开的假数据
 
 ```bash
 python -m water_ledger privacy-check
+```
+
+## 新用户可用性测试
+
+如果想按“第一次 clone 项目”的方式验证完整链路，可以运行：
+
+```bash
+bash scripts/smoke_test.sh
+```
+
+这个脚本会使用临时私有目录完成初始化、复制 `examples/` 中的支付宝和微信示例账单、重建 SQLite、运行隐私检查、启动本地网页并访问首页，最后停止服务。
+
+也可以手工执行同样的流程：
+
+```bash
+python -m water_ledger init --no-balance-prompts
+cp examples/支付宝交易明细_sample.csv private/imports/alipay/
+cp examples/微信支付账单流水文件_sample.xlsx private/imports/wechat/
+python -m water_ledger import
+python -m water_ledger start --port 8787
+open http://127.0.0.1:8787
+python -m water_ledger stop
+```
+
+开发者回归测试：
+
+```bash
+python -m unittest discover -s tests
 ```

@@ -19,6 +19,7 @@ from water_ledger.privacy import scan_public_workspace
 
 PID_FILE = PRIVATE_ROOT / "logs" / "server.pid"
 LOG_FILE = PRIVATE_ROOT / "logs" / "server.log"
+STATE_FILE = PRIVATE_ROOT / "logs" / "server.json"
 
 
 def money_to_cents(value: str) -> int:
@@ -172,6 +173,26 @@ def read_pid() -> int | None:
         return None
 
 
+def read_server_state() -> dict[str, object]:
+    try:
+        data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def write_server_state(host: str, port: int, pid: int) -> None:
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(
+        json.dumps({"host": host, "port": port, "pid": pid}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def server_url(host: object = None, port: object = None) -> str:
+    return f"http://{host or '127.0.0.1'}:{int(port or 8787)}"
+
+
 def port_is_open(host: str, port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(0.25)
@@ -182,10 +203,11 @@ def start_command(host: str, port: int) -> int:
     PRIVATE_ROOT.joinpath("logs").mkdir(parents=True, exist_ok=True)
     existing = read_pid()
     if existing and pid_is_running(existing):
+        state = read_server_state()
         print(json.dumps({
             "status": "already-running",
             "pid": existing,
-            "url": f"http://{host}:{port}",
+            "url": server_url(state.get("host", host), state.get("port", port)),
             "log": str(LOG_FILE),
         }, ensure_ascii=False, indent=2))
         return 0
@@ -209,9 +231,11 @@ def start_command(host: str, port: int) -> int:
         start_new_session=True,
     )
     PID_FILE.write_text(str(proc.pid), encoding="utf-8")
+    write_server_state(host, port, proc.pid)
     time.sleep(0.5)
     if proc.poll() is not None:
         PID_FILE.unlink(missing_ok=True)
+        STATE_FILE.unlink(missing_ok=True)
         print(json.dumps({
             "status": "failed",
             "exit_code": proc.returncode,
@@ -221,7 +245,7 @@ def start_command(host: str, port: int) -> int:
     print(json.dumps({
         "status": "started",
         "pid": proc.pid,
-        "url": f"http://{host}:{port}",
+        "url": server_url(host, port),
         "log": str(LOG_FILE),
     }, ensure_ascii=False, indent=2))
     return 0
@@ -231,10 +255,12 @@ def stop_command() -> int:
     pid = read_pid()
     if not pid or not pid_is_running(pid):
         PID_FILE.unlink(missing_ok=True)
+        STATE_FILE.unlink(missing_ok=True)
         print(json.dumps({"status": "not-running"}, ensure_ascii=False, indent=2))
         return 0
     os.kill(pid, signal.SIGTERM)
     PID_FILE.unlink(missing_ok=True)
+    STATE_FILE.unlink(missing_ok=True)
     print(json.dumps({"status": "stopped", "pid": pid}, ensure_ascii=False, indent=2))
     return 0
 
@@ -242,10 +268,11 @@ def stop_command() -> int:
 def status_command() -> int:
     pid = read_pid()
     running = bool(pid and pid_is_running(pid))
+    state = read_server_state()
     print(json.dumps({
         "status": "running" if running else "not-running",
         "pid": pid if running else None,
-        "url": "http://127.0.0.1:8787" if running else None,
+        "url": server_url(state.get("host"), state.get("port")) if running else None,
         "log": str(LOG_FILE),
     }, ensure_ascii=False, indent=2))
     return 0 if running else 1
