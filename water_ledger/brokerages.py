@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import os
 import shlex
@@ -21,6 +22,7 @@ from water_ledger.paths import DB_PATH, PRIVATE_ROOT, ROOT
 
 TZ = ZoneInfo("Asia/Shanghai")
 SNAPSHOT_DIR = PRIVATE_ROOT / "outputs" / "brokerage_snapshots"
+BROKERAGE_IMPORT_DIR = PRIVATE_ROOT / "imports" / "brokerage"
 
 
 @dataclass
@@ -298,6 +300,106 @@ def fetch_robinhood(config: dict[str, Any], snapshot_at: str) -> BrokerageSnapsh
     currency = extract_currency(raw_data, config, "USD")
     raw = {"snapshot_at": snapshot_at, "mcp_bridge_response": raw_data, "selected_net_assets": value, "currency": currency}
     return BrokerageSnapshot("robinhood", provider_account_name("robinhood", config), snapshot_at, money_to_cents(value), currency, raw)
+
+
+def format_command(command: Any, **values: str) -> list[str]:
+    if not command:
+        return []
+    parts = shlex.split(command) if isinstance(command, str) else [str(part) for part in command]
+    return [part.format(**values) for part in parts]
+
+
+def history_rows_from_json(data: Any, account: str, currency: str, provider: str) -> list[dict[str, str]]:
+    rows = data.get("snapshots") or data.get("history") if isinstance(data, dict) else data
+    if not isinstance(rows, list):
+        raise ValueError("History command JSON must be a list or contain snapshots/history list.")
+    normalized = []
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        date = item.get("date") or item.get("snapshot_at") or item.get("datetime")
+        balance = item.get("balance") or item.get("net_worth") or item.get("net_assets") or item.get("amount")
+        if date in (None, "") or balance in (None, ""):
+            continue
+        normalized.append(
+            {
+                "account": str(item.get("account") or item.get("account_name") or account),
+                "date": str(date),
+                "balance": str(balance),
+                "currency": str(item.get("currency") or currency),
+                "source": str(item.get("source") or item.get("provider") or f"{provider}_history"),
+            }
+        )
+    return normalized
+
+
+def history_rows_from_output(output: str, account: str, currency: str, provider: str) -> list[dict[str, str]]:
+    text = output.strip()
+    if not text:
+        return []
+    try:
+        return history_rows_from_json(json.loads(text), account, currency, provider)
+    except json.JSONDecodeError:
+        pass
+    reader = csv.DictReader(text.splitlines())
+    rows = []
+    for item in reader:
+        rows.append(
+            {
+                "account": item.get("account") or item.get("account_name") or item.get("账户") or account,
+                "date": item.get("date") or item.get("snapshot_at") or item.get("datetime") or item.get("日期") or "",
+                "balance": item.get("balance") or item.get("net_worth") or item.get("net_assets") or item.get("amount") or item.get("净资产") or "",
+                "currency": item.get("currency") or item.get("币种") or currency,
+                "source": item.get("source") or item.get("provider") or item.get("来源") or f"{provider}_history",
+            }
+        )
+    return [row for row in rows if row["account"] and row["date"] and row["balance"]]
+
+
+def write_history_import(provider: str, start: str, end: str, rows: list[dict[str, str]]) -> Path:
+    BROKERAGE_IMPORT_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"{provider}_history_{start.replace('-', '')}_{end.replace('-', '')}.csv"
+    path = BROKERAGE_IMPORT_DIR / filename
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["account", "date", "balance", "currency", "source"])
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def run_history(provider: str, start: str, end: str, rebuild: bool = False) -> dict[str, Any]:
+    name = provider.lower().strip()
+    config = normalize_provider_config(name)
+    account = provider_account_name(name, config)
+    currency = str(config.get("currency") or "USD").upper()
+    command = format_command(
+        config.get("history_command"),
+        provider=name,
+        account=account,
+        currency=currency,
+        start=start,
+        end=end,
+    )
+    if not command:
+        raise SystemExit(f"Configure brokerages.{name}.history_command in private/config.yaml.")
+    output = subprocess.check_output(command, cwd=ROOT, text=True)
+    rows = history_rows_from_output(output, account, currency, name)
+    if not rows:
+        raise SystemExit(f"No brokerage history rows returned for {name} from {start} to {end}.")
+    path = write_history_import(name, start, end, rows)
+    result: dict[str, Any] = {
+        "provider": name,
+        "account": account,
+        "start": start,
+        "end": end,
+        "rows": len(rows),
+        "import_file": str(path),
+    }
+    if rebuild:
+        from water_ledger.pipeline import rebuild_database
+
+        result["import_result"] = rebuild_database()
+    return result
 
 
 FETCHERS = {

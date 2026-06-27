@@ -10,6 +10,62 @@ from water_ledger.core.utils import cents, norm_text
 from water_ledger.paths import PRIVATE_ROOT
 
 
+def row_value(row: dict[str, str], *keys: str) -> str:
+    lowered = {str(key).strip().lower(): value for key, value in row.items()}
+    for key in keys:
+        value = lowered.get(key.lower())
+        if value not in (None, ""):
+            return norm_text(value)
+    return ""
+
+
+def normalize_snapshot_at(value: str) -> str:
+    text = norm_text(value)
+    if len(text) == 10:
+        datetime.strptime(text, "%Y-%m-%d")
+        return f"{text} 23:59:59"
+    parsed = datetime.fromisoformat(text)
+    return parsed.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def import_brokerage_asset_history(conn: sqlite3.Connection, account_ids: dict[str, int]) -> None:
+    """Import user-provided historical net-worth snapshots for any date range."""
+    imports_dir = PRIVATE_ROOT / "imports" / "brokerage"
+    if not imports_dir.exists():
+        return
+    account_currencies = {
+        row["name"]: (row["currency"] or "CNY").upper()
+        for row in conn.execute("SELECT name, currency FROM accounts")
+    }
+    for path in sorted(imports_dir.glob("*.csv")):
+        with path.open("r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                account_name = row_value(row, "account", "account_name", "账户", "账户名称")
+                snapshot_at = row_value(row, "snapshot_at", "datetime", "date", "日期", "时间")
+                balance = row_value(row, "balance", "net_worth", "net_assets", "amount", "净资产", "资产")
+                if not account_name or not snapshot_at or not balance:
+                    continue
+                if account_name not in account_ids:
+                    raise SystemExit(f"Brokerage history references unknown account: {account_name}")
+                currency = row_value(row, "currency", "币种")
+                expected_currency = account_currencies.get(account_name, "CNY")
+                if currency and currency.upper() != expected_currency:
+                    raise SystemExit(
+                        f"Brokerage history currency mismatch for {account_name}: "
+                        f"{currency.upper()} != {expected_currency}"
+                    )
+                source = row_value(row, "source", "provider", "来源") or f"brokerage_history:{path.name}"
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO asset_snapshots
+                      (account_id, snapshot_at, balance_cents, source, imported_transaction_id)
+                    VALUES (?, ?, ?, ?, NULL)
+                    """,
+                    (account_ids[account_name], normalize_snapshot_at(snapshot_at), cents(balance), source),
+                )
+
+
 def import_longbridge_asset_history(conn: sqlite3.Connection, account_ids: dict[str, int]) -> None:
     path = PRIVATE_ROOT / "outputs" / "longbridge_us_asset_daily_cny.csv"
     account_name = config_section("brokerages").get("longbridge", {}).get(

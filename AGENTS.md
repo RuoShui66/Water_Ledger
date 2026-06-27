@@ -63,6 +63,14 @@ For a new account, collect:
 2. Institution, currency, and whether it counts in net worth.
 3. Optional current balance and balance time.
 
+If the account type is `brokerage`, also ask whether the user has historical
+net-worth data to import. Accept any date range. Prefer configuring and running
+`python -m water_ledger brokerage-history --provider <provider> --start <date>
+--end <date> --rebuild` so the project batch-fetches history locally. Use CSV
+under `private/imports/brokerage/` only as a fallback or as the script output.
+Explain that current balance alone cannot reconstruct past daily market moves;
+historical snapshots are needed for an accurate historical curve.
+
 After collecting balance amounts, convert yuan to cents before writing
 `manual_balance_cents`, and write `manual_balance_at` when the user provides a
 date/time. For liabilities, store balances as negative numbers.
@@ -134,6 +142,12 @@ the visible transaction because it usually has the merchant, payee, product, or
 remark. Keep the bank transaction as the duplicate mirror for balance and
 reconciliation. If a user imports bank bills first and channel bills later,
 rebuild the ledger so the visible bill becomes more readable.
+
+Do not describe bank statements as the only source of balance curves. Each real
+funding account should have its own curve: bank-card payments affect the bank
+account, WeChat balance payments affect 微信余额, and Alipay balance payments
+affect 支付宝余额. WeChat and Alipay bills are both transaction-detail sources
+and wallet-balance inputs when the payment method is the wallet balance.
 
 ## Adding Accounts In Conversation
 

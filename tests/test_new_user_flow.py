@@ -89,6 +89,64 @@ class NewUserFlowTest(unittest.TestCase):
             ["主银行卡", "微信余额", "支付宝余额"],
         )
 
+    @unittest.skipUnless(HAS_IMPORT_DEPS, "runtime import dependencies are not installed")
+    def test_imports_brokerage_history_for_any_date_range(self) -> None:
+        import sqlite3
+        import yaml
+
+        with tempfile.TemporaryDirectory() as tmp:
+            private_dir = Path(tmp) / "private"
+            self.run_ledger(private_dir, "init", "--no-balance-prompts")
+            config_path = private_dir / "config.yaml"
+            config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+            config["accounts"].append(
+                {
+                    "name": "测试券商账户",
+                    "institution": "示例券商",
+                    "account_type": "brokerage",
+                    "currency": "USD",
+                    "include_in_net_worth": True,
+                    "manual_balance_cents": None,
+                    "manual_balance_at": None,
+                    "note": "测试历史净资产",
+                }
+            )
+            config_path.write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8")
+            history_dir = private_dir / "imports" / "brokerage"
+            history_dir.mkdir(parents=True, exist_ok=True)
+            history_dir.joinpath("brokerage_history.csv").write_text(
+                "\n".join(
+                    [
+                        "account,date,balance,currency,source",
+                        "测试券商账户,2025-01-01,1000.00,USD,manual_history",
+                        "测试券商账户,2025-09-15,1200.50,USD,manual_history",
+                        "测试券商账户,2026-06-27,1500.25,USD,manual_history",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            self.run_ledger(private_dir, "import")
+            with sqlite3.connect(private_dir / "data" / "water_ledger.sqlite") as conn:
+                rows = conn.execute(
+                    """
+                    SELECT s.snapshot_at, s.balance_cents, s.source
+                    FROM asset_snapshots s
+                    JOIN accounts a ON a.id = s.account_id
+                    WHERE a.name = '测试券商账户'
+                    ORDER BY s.snapshot_at
+                    """
+                ).fetchall()
+
+        self.assertEqual(
+            rows,
+            [
+                ("2025-01-01 23:59:59", 100000, "manual_history"),
+                ("2025-09-15 23:59:59", 120050, "manual_history"),
+                ("2026-06-27 23:59:59", 150025, "manual_history"),
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

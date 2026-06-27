@@ -115,6 +115,7 @@ def init_workspace(force: bool = False, configure_balances: bool = False, no_bal
         PRIVATE_ROOT / "imports" / "alipay",
         PRIVATE_ROOT / "imports" / "wechat",
         PRIVATE_ROOT / "imports" / "bank",
+        PRIVATE_ROOT / "imports" / "brokerage",
         PRIVATE_ROOT / "data",
         PRIVATE_ROOT / "outputs" / "longbridge_live_snapshots",
         PRIVATE_ROOT / "outputs" / "brokerage_snapshots",
@@ -297,6 +298,13 @@ def brokerage_snapshot_command(provider: str, dry_run: bool, no_raw: bool) -> in
     return 0
 
 
+def brokerage_history_command(provider: str, start: str, end: str, rebuild: bool) -> int:
+    from water_ledger.brokerages import run_history
+
+    print(json.dumps(run_history(provider=provider, start=start, end=end, rebuild=rebuild), ensure_ascii=False, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="water-ledger")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -331,6 +339,12 @@ def main(argv: list[str] | None = None) -> int:
     brokerage_parser.add_argument("--dry-run", action="store_true", help="fetch and print without writing SQLite")
     brokerage_parser.add_argument("--no-raw", action="store_true", help="do not write raw brokerage API response JSON")
 
+    history_parser = sub.add_parser("brokerage-history", help="Fetch brokerage historical net-worth snapshots")
+    history_parser.add_argument("--provider", required=True, help="brokerage provider configured in private/config.yaml")
+    history_parser.add_argument("--start", required=True, help="start date, YYYY-MM-DD")
+    history_parser.add_argument("--end", required=True, help="end date, YYYY-MM-DD")
+    history_parser.add_argument("--rebuild", action="store_true", help="rebuild SQLite after writing the history import CSV")
+
     args = parser.parse_args(argv)
     if args.command == "init":
         init_workspace(
@@ -355,6 +369,8 @@ def main(argv: list[str] | None = None) -> int:
         return privacy_check_command()
     if args.command == "brokerage-snapshot":
         return brokerage_snapshot_command(args.provider, args.dry_run, args.no_raw)
+    if args.command == "brokerage-history":
+        return brokerage_history_command(args.provider, args.start, args.end, args.rebuild)
     parser.error("unknown command")
     return 2
 

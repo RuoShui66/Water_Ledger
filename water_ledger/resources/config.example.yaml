@@ -75,11 +75,13 @@ brokerages:
     enabled: false
     account:
     currency: USD
+    history_command: []
     deposit_settlements: []
   futu:
     enabled: false
     account:
     currency: USD
+    history_command: []
     host: 127.0.0.1
     port: 11111
     market: US
@@ -88,16 +90,19 @@ brokerages:
     enabled: false
     account:
     currency: USD
+    history_command: []
     account_mode: auto
   ibkr:
     enabled: false
     account:
     currency: USD
+    history_command: []
     base_url: https://localhost:5000/v1/api
   robinhood:
     enabled: false
     account:
     currency: USD
+    history_command: []
     command: []
     balance_paths: [net_liquidation, total_equity, total_value]
     currency_paths: [currency]

@@ -7,6 +7,7 @@ from typing import Any
 from water_ledger.config import account_mapping
 from water_ledger.core.assets import (
     backfill_manual_balance_history,
+    import_brokerage_asset_history,
     import_longbridge_asset_history,
     rebuild_alipay_wealth_estimates,
     rebuild_borrowing_account_estimates,
@@ -69,6 +70,7 @@ def rebuild_database() -> dict[str, Any]:
     account_ids = init_db(conn)
     rows = load_all()
     insert_rows(conn, rows, account_ids)
+    import_brokerage_asset_history(conn, account_ids)
     import_longbridge_asset_history(conn, account_ids)
     dedupe(conn)
     refund_offset_pairs = mark_refund_offsets(conn)

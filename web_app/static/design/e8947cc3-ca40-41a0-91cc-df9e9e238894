@@ -158,7 +158,7 @@ function AccountDetailPage({ account, txns, onBack }){
       </div>
       <AccountTxnPanel account={account} txns={txns} />
       <div className="mono" style={{ fontSize:11, color:"var(--ink-4)", textAlign:"center" }}>
-        银行交易显示每笔之后的账户余额；钱包流水暂无逐笔余额时显示 --
+        银行流水可直接显示交易后余额；钱包余额会结合你录入的当前余额和钱包支付流水估算
       </div>
     </div>
   );
@@ -273,7 +273,7 @@ function Assets(){
       })}
 
       <div className="mono" style={{ fontSize:11, color:"var(--ink-4)", textAlign:"center" }}>
-        点击账户进入流水详情；银行交易显示每笔之后的账户余额，钱包余额需后续录入快照
+        点击账户进入流水详情；每个账户按自己的流水和余额快照生成曲线
       </div>
     </div>
   );

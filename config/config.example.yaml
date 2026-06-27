@@ -159,11 +159,13 @@ brokerages:
     account:
     currency: USD
     region: cn
+    history_command: []
     deposit_settlements: []
   futu:
     enabled: false
     account:
     currency: USD
+    history_command: []
     host: 127.0.0.1
     port: 11111
     market: US
@@ -175,6 +177,7 @@ brokerages:
     enabled: false
     account:
     currency: USD
+    history_command: []
     account_mode: auto
     account_id:
     private_key_path:
@@ -184,12 +187,14 @@ brokerages:
     enabled: false
     account:
     currency: USD
+    history_command: []
     base_url: https://localhost:5000/v1/api
     account_id:
   robinhood:
     enabled: false
     account:
     currency: USD
+    history_command: []
     # Robinhood currently exposes official agent access through Trading MCP.
     # Configure a local authenticated bridge command in private/config.yaml.
     command: []

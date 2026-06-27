@@ -32,6 +32,24 @@ private/imports/bank/
 
 如果 PDF 加密，导入器会尝试从文件名中的 `密码xxxx` 片段读取密码。开源仓库不要保留这种文件名。
 
+## 券商历史净资产
+
+优先让 Agent 运行批量拉取脚本：
+
+```bash
+python -m water_ledger brokerage-history --provider longbridge --start 2025-01-01 --end 2026-06-27 --rebuild
+```
+
+脚本结果会写入：
+
+```text
+private/imports/brokerage/
+```
+
+可参考 [examples/brokerage_asset_history.example.csv](../examples/brokerage_asset_history.example.csv)。
+
+这适合新增券商账户后回溯任意时间段的净资产。CSV 是脚本产物或兜底格式，至少包含账户名、日期和净资产金额。
+
 ## 手工流水
 
 手工流水放在：
