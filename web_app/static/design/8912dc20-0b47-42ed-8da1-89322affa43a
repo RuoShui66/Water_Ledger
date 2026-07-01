@@ -66,7 +66,7 @@ function Row({ t, onChangeCat }){
       </div>
 
       <div style={{ textAlign:"right" }}>
-        <Money value={t.amount} sign dp={Number.isInteger(t.amount)?0:2}
+        <Money value={t.amount} sign dp={2}
           color={t.amount>0?"var(--pos)":"var(--ink)"} size={1.02} />
       </div>
     </div>
@@ -84,8 +84,8 @@ function DayGroup({ day, rows, onChangeCat }){
         <span className="cjk-serif" style={{ fontSize:14.5, color:"var(--ink)" }}>{day}</span>
         <span className="mono" style={{ fontSize:11, color:"var(--ink-4)" }}>{rows.length} 笔</span>
         <span style={{ flex:1 }}></span>
-        {income>0 && <span style={{ fontSize:12, color:"var(--ink-3)" }}>收入 <Money value={income} sign color="var(--pos)" size={0.9}/></span>}
-        {expense>0 && <span style={{ fontSize:12, color:"var(--ink-3)" }}>支出 <Money value={-expense} sign color="var(--ink)" size={0.9}/></span>}
+        {income>0 && <span style={{ fontSize:12, color:"var(--ink-3)" }}>收入 <Money value={income} sign dp={2} color="var(--pos)" size={0.9}/></span>}
+        {expense>0 && <span style={{ fontSize:12, color:"var(--ink-3)" }}>支出 <Money value={-expense} sign dp={2} color="var(--ink)" size={0.9}/></span>}
       </div>
       {rows.map(t=> <Row key={t.id} t={t} onChangeCat={onChangeCat} />)}
     </div>

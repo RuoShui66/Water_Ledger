@@ -201,6 +201,15 @@ account, WeChat balance payments affect 微信余额, and Alipay balance payment
 affect 支付宝余额. WeChat and Alipay bills are both transaction-detail sources
 and wallet-balance inputs when the payment method is the wallet balance.
 
+When rebuilding wallet balances from WeChat or Alipay bills, treat the configured
+manual balance as an anchor and estimate both backward and forward from that
+time. Only wallet-funded rows may change wallet balances: 微信余额 is affected by
+零钱 payments and wallet receipts, and 支付宝余额 is affected by 账户余额/余额
+payments and wallet receipts. Exclude bank-card, credit-card, 余额宝, subsidy,
+coupon, and mixed non-wallet payment methods from wallet-balance movement; those
+transactions should affect the actual funding account or other asset account
+instead.
+
 ## Adding Accounts In Conversation
 
 When the user says something like "帮我加一张招商银行卡", "我还有一个券商账户",

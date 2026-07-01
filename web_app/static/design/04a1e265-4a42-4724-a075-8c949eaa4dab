@@ -34,7 +34,7 @@ function Donut({ data, total, size=240, hovered, onHover }){
       <text x={cx} y={cy-8} textAnchor="middle" fontFamily="var(--label)" fontSize="10.5"
         letterSpacing="0.18em" fill="var(--ink-3)">总支出</text>
       <text x={cx} y={cy+20} textAnchor="middle" fontFamily="var(--didone)" fontWeight="700"
-        fontSize="26" fill="var(--hero)">¥{fmt(total)}</text>
+        fontSize="26" fill="var(--hero)">¥{fmt(total,2)}</text>
     </svg>
   );
 }
@@ -60,7 +60,7 @@ function StatBlock({ label, value, sign, hero, sub }){
   return (
     <div style={{ padding:"22px 24px" }}>
       <div className="label" style={{ fontSize:10.5, color:"var(--ink-3)", marginBottom:13 }}>{label}</div>
-      <Money value={value} sign={sign} size={hero?1.75:1.5}
+      <Money value={value} sign={sign} dp={2} size={hero?1.75:1.5}
         color={hero?"var(--hero)": sign?dirColor(value):"var(--ink)"} className={hero?"didone":""} />
       {sub && <div className="mono" style={{ fontSize:10.5, color:"var(--ink-4)", marginTop:9 }}>{sub}</div>}
     </div>
@@ -96,7 +96,7 @@ function StatTxnRow({ t, income=false }){
         </span>
       </span>
       <Tag tone={income?"pos":undefined} glyph={CAT_GLYPH[t.cat]}>{t.cat}</Tag>
-      <Money value={t.amount} sign={income} color={income?"var(--pos)":"var(--ink)"} size={0.98} />
+      <Money value={t.amount} sign={income} dp={2} color={income?"var(--pos)":"var(--ink)"} size={0.98} />
     </div>
   );
 }
@@ -121,7 +121,7 @@ function CatRow({ d, idx, n, total, rows, sort, onSort, open, onToggle }){
           <span className="mono" style={{ fontSize:11, color:"var(--ink-4)", marginLeft:10 }}>{txns.length} 笔</span>
         </span>
         <div className="cat-bar"><Bar pct={d.v/total*100} color={color} h={6} /></div>
-        <Money value={-d.v} size={1.0} />
+        <Money value={-d.v} dp={2} size={1.0} />
         <span className="num cat-pct" style={{ textAlign:"right", fontSize:12.5, color:"var(--ink-3)" }}>{(d.v/total*100).toFixed(1)}%</span>
         <span style={{ textAlign:"center", color:"var(--ink-4)", fontSize:11,
           transform:open?"rotate(90deg)":"none", transition:"transform .2s" }}>▸</span>
@@ -162,7 +162,7 @@ function IncomeRecords({ rows, sort, onSort }){
           <div style={{ display:"flex", alignItems:"baseline", gap:18 }}>
             <span className="cjk-serif" style={{ fontSize:15, color:"var(--ink)" }}>收入</span>
             <span className="mono" style={{ fontSize:11, color:"var(--ink-4)" }}>{txns.length} 笔</span>
-            <Money value={total} sign color="var(--pos)" size={1.0} />
+            <Money value={total} sign dp={2} color="var(--pos)" size={1.0} />
           </div>
           <div style={{ display:"flex", gap:8 }}>
             <span className="label" style={{ fontSize:9.5, color:"var(--ink-4)", alignSelf:"center" }}>排序</span>
@@ -239,7 +239,7 @@ function Stats(){
           <StatBlock label="结余" value={balance} sign hero sub={income>0?`储蓄率 ${Math.round(balance/income*100)}%`:""} />
         </div>
         <div style={{ background:"white" }}>
-          <StatBlock label="日均支出" value={-Math.round(dailyAvg)} sub={`÷ ${days} 天`} />
+          <StatBlock label="日均支出" value={-dailyAvg} sub={`÷ ${days} 天`} />
         </div>
       </div>
 
@@ -261,7 +261,7 @@ function Stats(){
                 <span style={{ width:11, height:11, borderRadius:3, background:catColor(i,cats.length) }}></span>
                 <span className="cjk-serif" style={{ fontSize:13.5, color:"var(--ink-2)", width:54 }}>{d.cat}</span>
                 <div style={{ flex:1 }}><Bar pct={d.v/expense*100} color={catColor(i,cats.length)} h={5} /></div>
-                <span className="num" style={{ fontSize:12.5, color:"var(--ink-2)", width:78, textAlign:"right" }}>¥{fmt(d.v)}</span>
+                <span className="num" style={{ fontSize:12.5, color:"var(--ink-2)", width:78, textAlign:"right" }}>¥{fmt(d.v,2)}</span>
                 <span className="num" style={{ fontSize:11.5, color:"var(--ink-4)", width:42, textAlign:"right" }}>{(d.v/expense*100).toFixed(1)}%</span>
               </div>
             ))}

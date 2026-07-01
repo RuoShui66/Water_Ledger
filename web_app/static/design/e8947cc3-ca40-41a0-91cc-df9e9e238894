@@ -73,7 +73,7 @@ function AccountTxnRow({ t }){
       </div>
       <Tag glyph={CAT_GLYPH[t.cat]}>{t.cat}</Tag>
       <div style={{ textAlign:"right" }}>
-        <Money value={t.amount} sign dp={Number.isInteger(t.amount)?0:2}
+        <Money value={t.amount} sign dp={2}
           color={t.amount>0?"var(--pos)":"var(--ink)"} size={1.02} />
       </div>
       <div style={{ textAlign:"right" }}>
@@ -105,8 +105,8 @@ function AccountTxnPanel({ account, txns }){
         <span className="cjk-serif" style={{ fontSize:17, color:"var(--ink)" }}>{account?.name || "账户流水"}</span>
         <span className="mono" style={{ fontSize:11.5, color:"var(--ink-4)" }}>{txns.length} 笔</span>
         <span style={{ flex:1 }}></span>
-        <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>支出 <Money value={-expense} sign size={0.9}/></span>
-        <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>收入 <Money value={income} sign color="var(--pos)" size={0.9}/></span>
+        <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>支出 <Money value={-expense} sign dp={2} size={0.9}/></span>
+        <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>收入 <Money value={income} sign dp={2} color="var(--pos)" size={0.9}/></span>
       </div>
       <div className="bills-grid" style={{ display:"grid", gridTemplateColumns:"82px 1fr 96px 132px 132px",
         gap:16, padding:"11px 18px", borderBottom:"1px solid var(--line)",
@@ -151,8 +151,8 @@ function AccountDetailPage({ account, txns, onBack }){
         </div>
         <div style={{ display:"flex", gap:22, alignItems:"baseline", flexWrap:"wrap", justifyContent:"flex-end" }}>
           <span className="mono" style={{ fontSize:11.5, color:"var(--ink-4)" }}>{txns.length} 笔流水</span>
-          <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>支出 <Money value={-expense} sign size={0.9}/></span>
-          <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>收入 <Money value={income} sign color="var(--pos)" size={0.9}/></span>
+          <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>支出 <Money value={-expense} sign dp={2} size={0.9}/></span>
+          <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>收入 <Money value={income} sign dp={2} color="var(--pos)" size={0.9}/></span>
           <span style={{ fontSize:12.5, color:"var(--ink-3)" }}>当前余额 <Money value={account?.cny || 0} dp={2} size={0.95}/></span>
         </div>
       </div>

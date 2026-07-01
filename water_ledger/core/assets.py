@@ -354,15 +354,17 @@ def rebuild_wallet_balance_estimates(conn: sqlite3.Connection) -> None:
             "DELETE FROM asset_snapshots WHERE account_id = ? AND source IN ('manual_backfill', 'wallet_estimate')",
             (account["id"],),
         )
-        running = int(account["manual_balance_cents"])
+        anchor_balance = int(account["manual_balance_cents"])
         conn.execute(
             """
             INSERT OR REPLACE INTO asset_snapshots
               (account_id, snapshot_at, balance_cents, source, imported_transaction_id)
             VALUES (?, ?, ?, 'manual_current', NULL)
             """,
-            (account["id"], account["manual_balance_at"], running),
+            (account["id"], account["manual_balance_at"], anchor_balance),
         )
+
+        running = anchor_balance
         txns = conn.execute(
             """
             SELECT id, occurred_at, direction, payment_method, signed_cents
@@ -388,6 +390,33 @@ def rebuild_wallet_balance_estimates(conn: sqlite3.Connection) -> None:
             running -= int(txn["signed_cents"] or 0)
             if running < 0:
                 running = 0
+
+        running = anchor_balance
+        txns = conn.execute(
+            """
+            SELECT id, occurred_at, direction, payment_method, signed_cents
+            FROM ledger_transactions
+            WHERE account_id = ?
+              AND is_duplicate = 0
+              AND occurred_at > ?
+            ORDER BY occurred_at ASC, id ASC
+            """,
+            (account["id"], account["manual_balance_at"]),
+        ).fetchall()
+        for txn in txns:
+            if not wallet_balance_affects_account(account["name"], txn["direction"], txn["payment_method"]):
+                continue
+            running += int(txn["signed_cents"] or 0)
+            if running < 0:
+                running = 0
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO asset_snapshots
+                  (account_id, snapshot_at, balance_cents, source, imported_transaction_id)
+                VALUES (?, ?, ?, 'wallet_estimate', NULL)
+                """,
+                (account["id"], txn["occurred_at"], running),
+            )
 
 def alipay_wealth_delta_cents(row: sqlite3.Row) -> int:
     description = row["description"] or ""
