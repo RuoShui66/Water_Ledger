@@ -142,10 +142,6 @@ def boc_counterparty_and_description(rest: str, extra_lines: list[str]) -> tuple
             return counterparty, f"美团App {after}"
         return counterparty, full
     if "财付通" in full:
-        apartment = re.search(r"财付通-(悦虹人才公寓-)\s*(吴中路店)", full)
-        if apartment:
-            name = "".join(apartment.groups())
-            return name, f"财付通 {name}"
         merchant = re.search(r"(财付通-[^\s]+(?:\s+[^\s]+)?)", full)
         if merchant:
             counterparty = norm_text(merchant.group(1)).replace(" ", "")

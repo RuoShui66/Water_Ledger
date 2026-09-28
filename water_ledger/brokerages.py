@@ -155,7 +155,8 @@ def provider_account_name(provider: str, config: dict[str, Any]) -> str:
 
 
 def fetch_longbridge(config: dict[str, Any], snapshot_at: str) -> BrokerageSnapshot:
-    exe = str(config.get("executable") or (Path("/Users/water/.local/bin/longbridge") if Path("/Users/water/.local/bin/longbridge").exists() else "longbridge"))
+    default_exe = Path.home() / ".local/bin/longbridge"
+    exe = str(config.get("executable") or (default_exe if default_exe.exists() else "longbridge"))
     env = os.environ.copy()
     env.setdefault("LONGBRIDGE_REGION", str(config.get("region") or "cn"))
     currency = str(config.get("currency") or "USD").upper()

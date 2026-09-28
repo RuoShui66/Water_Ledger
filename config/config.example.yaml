@@ -144,12 +144,10 @@ classification:
 private_rules:
   liability_inflow_keyword:
   borrowing_keyword:
-  borrowing_start_at: "2025-10-01 00:00:00"
+  borrowing_start_at:
   brokerage_transfer_keywords:
     - 购汇
     - 互联互通
-    - Bank of China (Hong
-    - BANK OF CHINA (HONG
   ignore_transfer_keywords:
     - 国际汇款
 

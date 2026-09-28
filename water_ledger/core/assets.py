@@ -277,7 +277,7 @@ def rebuild_borrowing_account_estimates(conn: sqlite3.Connection, account_ids: d
     keyword = norm_text(private_rules().get("borrowing_keyword")) or os.environ.get("WATER_LEDGER_BORROWING_KEYWORD", "").strip()
     if not keyword:
         return
-    start_at = norm_text(private_rules().get("borrowing_start_at")) or "2025-10-01 00:00:00"
+    start_at = norm_text(private_rules().get("borrowing_start_at")) or ""
     conn.execute(
         "DELETE FROM asset_snapshots WHERE account_id = ? AND source = 'borrowing_estimate'",
         (account_id,),
